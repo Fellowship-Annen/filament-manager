@@ -34,6 +34,11 @@ window.Filament = (() => {
     const url=new URL(api);url.searchParams.set('action','health');const data=await request(url);
     if(!data.ok||data.apiVersion!=='filament-form-history-v3'||data.historySheet!=='フォームの回答 1'||!data.actions?.includes('register'))throw Error('新規登録と履歴記録に対応したGASではありません。');
   }
+  async function filamentMasters() {
+    const url=new URL(api);url.searchParams.set('action','filamentMasters');const data=await request(url);
+    if(!data.ok||data.action!=='filamentMasters'||!Array.isArray(data.items))throw Error(data.message||data.error||'フィラメントマスターを取得できません。');
+    return data.items;
+  }
   async function candidates() {
     if(typeof Papa==='undefined')throw Error('候補の読込機能を取得できません。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
@@ -64,5 +69,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:item.maker,base:item.base,color:item.color});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,verify,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,verify,filamentMasters,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();
