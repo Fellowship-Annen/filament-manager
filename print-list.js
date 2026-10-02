@@ -1,6 +1,8 @@
 'use strict';
 (() => {
  const F=window.Filament,$=id=>document.getElementById(id),selected=new Set();let items=[];const initialState=new URLSearchParams(location.search).get('state');if(['pending','printed'].includes(initialState))$('printState').value=initialState;
+ if(initialState==='pending'){$('pageTitle').textContent='未印刷のQRをまとめて印刷';$('pageIntro').textContent='登録済みで印刷回数0のフィラメントから、今回印刷するものを選びます。'}
+ if(initialState==='printed'){$('pageTitle').textContent='QRラベルを再印刷';$('pageIntro').textContent='印刷済みの在庫から、破損・紛失したQRを選んで再印刷します。'}
  const clean=F.clean,field=(row,names)=>{for(const name of names)if(row[name]!=null&&clean(row[name])!=='')return row[name];return ''};
  function number(value){const normalized=clean(value).replaceAll(',','');return normalized===''?null:Number(normalized)}
  function parse(row){const weight=number(field(row,['重量（ｇ）','重量（g）','重量(g)','重量'])),printCount=number(field(row,['印刷回数','QR印刷回数'])),label=clean(field(row,['ラベル注釈','QRラベル注釈']));return {id:clean(field(row,['管理番号(半角)','管理番号（半角）','管理番号'])),maker:clean(row['メーカー']),base:clean(field(row,['母材(ベース)','母材（ベース）','母材'])),sub:clean(row['サブカテゴリ']),color:clean(row['色']),place:clean(row['保管場所']),weight:Number.isFinite(weight)?weight:null,printCount:Number.isFinite(printCount)&&printCount>=0?printCount:null,label,savedLabel:label}}
