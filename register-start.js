@@ -32,10 +32,4 @@
   }catch(error){$('status').textContent=error.message;$('status').classList.add('error')}
   finally{busy=false;$('startFields').disabled=false;mode()}
  };
- const recent=F.recentRegistrations();
- if(!recent.length)$('recent').textContent='まだ登録したフィラメントはありません。';
- recent.forEach((item,index)=>{const label=document.createElement('label');label.className='recent-item';const input=document.createElement('input');input.type='checkbox';input.value=item.id;input.checked=index<20;const text=document.createElement('span');text.textContent=[item.id,item.maker,item.base,item.color].filter(Boolean).join(' ／ ');label.append(input,text);$('recent').append(label)});
- function selection(){const checked=[...$('recent').querySelectorAll('input:checked')];$('makeQr').disabled=!checked.length||checked.length>20;$('selectionStatus').textContent=checked.length+'件選択中'+(checked.length>20?'。20件以内で選んでください。':'');return checked.map(input=>input.value)}
- $('recent').onchange=selection;selection();
- $('makeQr').onclick=()=>{const ids=selection();if(ids.length&&ids.length<=20)location.href='./qr.html?ids='+encodeURIComponent(ids.join('\n'))};
 })();
