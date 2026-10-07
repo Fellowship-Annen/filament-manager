@@ -1,6 +1,6 @@
 'use strict';
 (() => {
- const F=window.Filament,$=id=>document.getElementById(id);let busy=false,large=false,printBusy=false,generatedAllIds=[],generatedRegisteredIds=[],generationToken='';const savedNames=F.localLoad('filamentQrAnnotationsV1',{});
+ const F=window.Filament,$=id=>document.getElementById(id),params=new URLSearchParams(location.search);let busy=false,large=false,printBusy=false,generatedAllIds=[],generatedRegisteredIds=[],generationToken='';const savedNames=F.localLoad('filamentQrAnnotationsV1',{});
  const today=new Date();$('date').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
  function status(value,error=false){$('status').textContent=value;$('status').classList.toggle('error',error)}
  function sequenceIds(prefix,date,serial,count){if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!Number.isInteger(serial)||!Number.isInteger(count)||serial<1||count<1||count>20||serial+count-1>99)return [];const datePart=date.slice(2).replaceAll('-','');const ids=Array.from({length:count},(_,i)=>prefix+datePart+String(serial+i).padStart(2,'0'));return ids.every(F.validId)?ids:[]}
@@ -8,7 +8,7 @@
  function updateMainPlanned(){showPlanned($('plannedIds'),$('serialLabel'),$('prefix').value,$('date').value,$('serial').valueAsNumber,$('count').valueAsNumber)}
  function mode(){const custom=$('mode').value==='custom';$('customFields').hidden=!custom;$('batchFields').hidden=custom;$('ids').required=custom;for(const key of ['date','serial','count'])$(key).disabled=custom;updateMainPlanned()}
  $('mode').onchange=mode;
- const supplied=new URLSearchParams(location.search).get('ids');if(supplied){$('mode').value='custom';$('ids').value=supplied;status('管理番号を引き継ぎました。内容を確認してQRを作成してください。')}
+ const supplied=params.get('ids');if(supplied){$('mode').value='custom';$('ids').value=supplied;status('管理番号を引き継ぎました。内容を確認してQRを作成してください。')}else if(params.get('mode')==='custom'){$('mode').value='custom';status('登録済みの管理番号を入力してください。')}
  $('qrForm').addEventListener('input',()=>{updateMainPlanned();if(!busy){generatedAllIds=[];generatedRegisteredIds=[];generationToken='';$('labels').replaceChildren();$('printTools').hidden=true;$('addPanel').hidden=true;status('条件を変更しました。「登録状況を確認してQRを作る」を押してください。')}});
  function newToken(){return typeof crypto.randomUUID==='function'?crypto.randomUUID():'print-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
  function identifiers(){let ids;if($('mode').value==='custom'){ids=$('ids').value.split(/\r?\n/).map(F.clean).filter(Boolean)}else{ids=sequenceIds($('prefix').value,$('date').value,$('serial').valueAsNumber,$('count').valueAsNumber);if(!ids.length)throw Error('日付・連番・枚数を確認してください。連番は99までです。')}if(!ids.length||ids.length>20)throw Error('管理番号は1〜20件で指定してください。');if(new Set(ids).size!==ids.length)throw Error('同じ管理番号が重複しています。');if(ids.some(id=>!F.validId(id)))throw Error('管理番号はS/O/F＋実在する日付YYMMDD＋連番2桁で入力してください。');return ids}
