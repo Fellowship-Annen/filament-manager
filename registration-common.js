@@ -68,6 +68,6 @@ window.Filament = (() => {
   function persistentSave(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
-  function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:item.maker,base:item.base,color:item.color});localSave('filamentRecentRegistrationsV1',items)}
+  function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
   return {api,home,places,clean,validId,request,lookup,verify,filamentMasters,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();
