@@ -39,6 +39,21 @@ window.Filament = (() => {
     if(!data.ok||data.action!=='filamentMasters'||!Array.isArray(data.items))throw Error(data.message||data.error||'フィラメントマスターを取得できません。');
     return data.items;
   }
+  async function makerMasters() {
+    const healthUrl=new URL(api);healthUrl.searchParams.set('action','health');const health=await request(healthUrl);
+    if(!health.ok||!health.actions?.includes('makerMasters'))throw Error('公開中のGASはメーカーマスターの取得にまだ対応していません。');
+    const url=new URL(api);url.searchParams.set('action','makerMasters');const data=await request(url);
+    if(!data.ok||data.action!=='makerMasters'||!Array.isArray(data.items))throw Error(data.message||data.error||'メーカーマスターを取得できません。');
+    return data.items;
+  }
+  async function createFilamentMaster(item) {
+    const healthUrl=new URL(api);healthUrl.searchParams.set('action','health');const health=await request(healthUrl);
+    if(!health.ok||!health.actions?.includes('createFilamentMaster'))throw Error('公開中のGASはフィラメントマスターの追加にまだ対応していません。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'createFilamentMaster',...item})});
+    if(!data.ok)throw Error(data.message||data.error||'フィラメントマスターへ追加できませんでした。');
+    if(data.action!=='createFilamentMaster'||!/^FL\d{6}$/.test(clean(data.id)))throw Error('フィラメントマスターの追加結果が一致しません。');
+    return data;
+  }
   async function candidates() {
     if(typeof Papa==='undefined')throw Error('候補の読込機能を取得できません。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
@@ -69,5 +84,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,verify,filamentMasters,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,verify,filamentMasters,makerMasters,createFilamentMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();

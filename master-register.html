@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#126b58"><title>フィラメントマスター追加</title><link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./registration.css"></head>
+<body><main class="wrap"><header><a id="back" href="./register-start.html">← 入庫登録へ戻る</a><h1>新しい商品をマスターへ追加</h1><p class="muted">ここでは商品の種類を1件追加します。フィラメント1本ごとの管理番号登録は、追加完了後に行います。</p></header>
+<section class="panel"><form id="form"><fieldset id="fields" disabled>
+<label class="field" for="makerId">メーカー（必須）</label><select id="makerId" required><option value="">取得中…</option></select>
+<label class="field" for="product">商品名・シリーズ名</label><input id="product" maxlength="100" placeholder="例：PLA Basic">
+<label class="field" for="base">素材（必須）</label><input id="base" maxlength="50" required placeholder="例：PLA、ASA">
+<label class="field" for="sub">サブカテゴリ（必須）</label><input id="sub" maxlength="50" required placeholder="例：標準、マット、silk">
+<label class="field" for="color">色（必須）</label><input id="color" maxlength="80" required placeholder="正式表示に使う色名">
+<label class="field" for="aliases">検索別名</label><input id="aliases" maxlength="300" placeholder="例：ホワイト｜White｜社内呼称">
+<p class="muted">複数の別名は「｜」で区切ります。</p>
+<label class="field" for="purchaseUrl">購入先URL</label><input id="purchaseUrl" type="url" maxlength="500" inputmode="url" placeholder="https://...">
+<label class="field" for="note">備考</label><textarea id="note" maxlength="1000" placeholder="商品の補足情報"></textarea>
+<button id="submit" class="primary full" type="submit">この商品をマスターへ追加</button>
+</fieldset></form><p id="status" class="status" role="status" aria-live="polite">メーカーマスターを取得しています…</p></section>
+<section id="complete" class="panel" hidden><h2>追加しました</h2><dl id="detail"></dl><a id="return" class="button primary full" href="./register-start.html">入庫登録へ戻る</a><a class="button full" href="./master-register.html">続けて別の商品を追加</a></section>
+</main><script src="./registration-common.js"></script><script src="./master-register.js"></script></body></html>

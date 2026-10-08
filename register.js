@@ -25,5 +25,5 @@
  $('check').onclick=$('retry').onclick=check;$('acknowledge').onclick=()=>{if(busy||refreshing||exists)return;ids.forEach(targetId=>delete pending[targetId]);F.localSave('filamentRegistrationPendingV1',pending);check()};
  if(!firstId){location.replace('./register-start.html');return}
  if(!ids.length){status('管理番号または本数を確認してください。1回に登録できるのは20本まで、連番は99までです。',true);$('retry').hidden=true;$('entry').hidden=true;return}
- $('id').value=ids.length===1?firstId:firstId+' ～ '+ids.at(-1)+'（'+ids.length+'本）';$('intro').textContent=ids.length===1?'管理番号を確認して、フィラメントを1本登録します。':'共通情報を一度入力し、'+ids.length+'本を連番で登録します。';$('submit').textContent=ids.length===1?'この内容で登録する':ids.length+'本をこの内容で一括登録する';$('location').value=F.places[firstId[0]];loadCandidates();check();
+ $('id').value=ids.length===1?firstId:firstId+' ～ '+ids.at(-1)+'（'+ids.length+'本）';$('intro').textContent=ids.length===1?'管理番号を確認して、フィラメントを1本登録します。':'共通情報を一度入力し、'+ids.length+'本を連番で登録します。';$('submit').textContent=ids.length===1?'この内容で登録する':ids.length+'本をこの内容で一括登録する';$('location').value=F.places[firstId[0]];$('addMaster').href='./master-register.html?return='+encodeURIComponent(location.pathname.split('/').pop()+location.search);loadCandidates();check();
 })();
