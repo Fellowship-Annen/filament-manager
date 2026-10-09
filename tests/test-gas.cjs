@@ -28,4 +28,21 @@ r=ctx.createFilamentMaster({makerId:'MK001',base:'PETG',sub:'標準',color:'透�
 r=ctx.createFilamentMaster({makerId:'MK999',base:'PETG',sub:'標準',color:'透明'});assert(!r.ok);assert.equal(sheets['フィラメントマスター'].rows.length,3);
 console.log('PASS: maker list, master auto-numbering, duplicate rejection, URL and maker validation.');
 
+reset();const lookupBatch=ctx.doGet({parameter:{action:'lookupBatch',ids:'S26092801,O26092801'}});assert(lookupBatch.ok);assert.equal(lookupBatch.items.length,2);assert.equal(lookupBatch.items[0].found,true);assert.equal(lookupBatch.items[1].found,false);
+r=ctx.registerFilamentBatch({items:[
+ {id:'O26092801',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'一括'},
+ {id:'O26092802',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'一括'}
+]});assert(r.ok);assert.equal(r.action,'registerBatch');assert.deepEqual(Array.from(r.ids),['O26092801','O26092802']);assert.equal(sheets['在庫台帳'].rows.length,4);assert.equal(sheets['フォームの回答 1'].rows.length,3);assert.equal(sheets['在庫台帳'].rows[2][9],'FL000001');assert.equal(sheets['在庫台帳'].rows[3][10],0);assert(sheets['フォームの回答 1'].rows[1][11].includes('完了'));assert(sheets['フォームの回答 1'].rows[2][11].includes('完了'));
+r=ctx.registerFilamentBatch({items:[
+ {id:'O26092802',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'重複'},
+ {id:'O26092803',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'重複'}
+]});assert(!r.ok);assert(String(r.error).includes('ID_ALREADY_EXISTS'));assert.equal(sheets['在庫台帳'].rows.length,4);
+console.log('PASS: batch lookup, two-item registration, history rows, print count and duplicate rejection.');
+
+reset();failLedger=true;r=ctx.registerFilamentBatch({items:[
+ {id:'F26092801',filamentKey:'FL000001',location:'フォージー',person:'担当',weight:1000,note:'一括'},
+ {id:'F26092802',filamentKey:'FL000001',location:'フォージー',person:'担当',weight:1000,note:'一括'}
+]});assert.equal(r.error,'UPDATE_REQUIRES_REVIEW');assert.equal(sheets['在庫台帳'].rows.length,2);assert(sheets['フォームの回答 1'].rows[1][11].includes('要確認'));assert(sheets['フォームの回答 1'].rows[2][11].includes('要確認'));
+console.log('PASS: batch ledger failure requires review and does not silently retry.');
+
 reset();delete sheets['フォームの回答 1'];r=ctx.updateWeight({id:'S26092801',weight:1,person:'担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);assert(!sheets['操作ログ']);console.log('PASS: missing response sheet blocks mutation, no new sheet created');

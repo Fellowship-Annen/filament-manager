@@ -30,9 +30,25 @@ window.Filament = (() => {
     if (data.error==='ID_NOT_FOUND') return null;
     throw Error(data.message||data.error||'登録状況を確認できません。');
   }
+  async function lookupBatch(ids) {
+    if(!Array.isArray(ids)||!ids.length||ids.length>20||new Set(ids).size!==ids.length||ids.some(id=>!validId(id)))throw Error('確認する管理番号を1〜20件で指定してください。');
+    const url=new URL(api);url.searchParams.set('action','lookupBatch');url.searchParams.set('ids',ids.join(','));
+    const data=await request(url);
+    if(!data.ok||data.action!=='lookupBatch'||!Array.isArray(data.items)||data.items.length!==ids.length)throw Error(data.message||data.error||'登録状況をまとめて確認できません。');
+    if(data.items.some((item,index)=>clean(item.id)!==ids[index]||typeof item.found!=='boolean'))throw Error('登録状況の一括確認結果が一致しません。');
+    return data.items;
+  }
   async function verify() {
     const url=new URL(api);url.searchParams.set('action','health');const data=await request(url);
     if(!data.ok||data.apiVersion!=='filament-form-history-v3'||data.historySheet!=='フォームの回答 1'||!data.actions?.includes('register'))throw Error('新規登録と履歴記録に対応したGASではありません。');
+    return data;
+  }
+  async function registerBatch(items) {
+    if(!Array.isArray(items)||items.length<2||items.length>20)throw Error('一括登録は2〜20本で指定してください。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action:'registerBatch',items})});
+    if(!data.ok)throw Object.assign(Error(data.message||data.error||'一括登録できませんでした。'),{code:data.error});
+    if(data.action!=='registerBatch'||data.historyStatus!=='完了'||data.historySheet!=='フォームの回答 1'||!Array.isArray(data.ids)||data.ids.length!==items.length)throw Error('一括登録と履歴保存の結果を確認できませんでした。');
+    return data;
   }
   async function filamentMasters() {
     const url=new URL(api);url.searchParams.set('action','filamentMasters');const data=await request(url);
@@ -84,5 +100,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,verify,filamentMasters,makerMasters,createFilamentMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();

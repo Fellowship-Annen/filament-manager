@@ -7,6 +7,7 @@ function doPost(e) {
     if (action === "markPrinted") return markPrinted(data);
     if (action === "updateLabel") return updateLabel(data);
     if (action === "createFilamentMaster") return createFilamentMaster(data);
+    if (action === "registerBatch") return registerFilamentBatch(data);
 
     // ==============================
     // 重量更新
@@ -47,17 +48,106 @@ function updateWeight(data) { return mutateWithHistory_(data, 'updateWeight'); }
 function updateLocation(data) { return mutateWithHistory_(data, 'updateLocation'); }
 function registerFilament(data) { return mutateWithHistory_(data, 'register'); }
 
+function registerFilamentBatch(data) {
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (items.length < 2 || items.length > 20) {
+    return jsonResponse({ok:false, error:'INVALID_BATCH_SIZE', message:'一括登録は2〜20本で指定してください'});
+  }
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  let log = null, logRows = [], ledgerWriteAttempted = false, prepared = [];
+  try {
+    const book = SpreadsheetApp.getActiveSpreadsheet();
+    const ledger = book.getSheetByName('在庫台帳');
+    if (!ledger) throw new Error('在庫台帳が見つかりません');
+    const extraHeaders = ledger.getRange(1, 10, 1, 3).getValues()[0]
+      .map(v => historyText_(v).normalize('NFKC').replace(/\s/g, ''));
+    if (!/フィラメントキー/.test(extraHeaders[0]) || !/印刷回数/.test(extraHeaders[1]) || !/ラベル注釈/.test(extraHeaders[2])) {
+      throw new Error('在庫台帳J～L列の見出しを確認してください');
+    }
+    const ledgerLastRow = ledger.getLastRow();
+    const rows = ledgerLastRow > 1 ? ledger.getRange(2, 1, ledgerLastRow - 1, 12).getValues() : [];
+    const existing = new Set();
+    rows.forEach(row => {
+      const id = historyText_(row[0]);
+      if (!id) return;
+      if (existing.has(id)) throw new Error('DUPLICATE_ID:' + id);
+      existing.add(id);
+    });
+    const requestIds = items.map(item => historyText_(item.id));
+    if (requestIds.some(id => !/^[SOF]\d{8}$/.test(id)) || new Set(requestIds).size !== requestIds.length) {
+      throw new Error('一括登録する管理番号を確認してください');
+    }
+    const alreadyExists = requestIds.find(id => existing.has(id));
+    if (alreadyExists) throw new Error('ID_ALREADY_EXISTS:' + alreadyExists);
+
+    const masterCache = new Map();
+    prepared = items.map(item => {
+      const id = historyText_(item.id), person = historyText_(item.person), key = historyText_(item.filamentKey).toUpperCase();
+      if (!person) throw new Error(id + ' の担当者を選択または入力してください');
+      if (!masterCache.has(key)) masterCache.set(key, requireFilamentMaster_(book, key));
+      const master = masterCache.get(key), location = historyText_(item.location);
+      if (!['さんらいず', 'オーシャン', 'フォージー'].includes(location)) throw new Error(id + ' の保管場所を選択してください');
+      const after = [id, master.maker, master.base, master.sub, master.color, location,
+        historyWeight_(item.weight, true), person, historyText_(item.note)];
+      return {id:id, filamentKey:master.filamentKey, label:historyText_(item.label), after:after, operationId:Utilities.getUuid()};
+    });
+
+    log = historySheet_(book);
+    prepared.forEach(entry => {
+      const after = entry.after;
+      const note = (after[8] ? after[8] + '\n' : '') + responseNote_('処理中', entry.operationId, null, after, '');
+      log.appendRow([new Date(), '入荷', entry.id, after[6], after[7], after[4], after[2], after[3], after[1], after[5], 1, note].map(historyCell_));
+    });
+    SpreadsheetApp.flush();
+    const noteValues = log.getRange(2, 12, log.getLastRow() - 1, 1).getValues();
+    logRows = prepared.map(entry => {
+      const matches = noteValues.map((row, index) => String(row[0]).includes(entry.operationId) ? index + 2 : -1).filter(row => row > 0);
+      if (matches.length !== 1) throw new Error(entry.id + ' の履歴行を確認できません。台帳は更新していません');
+      return matches[0];
+    });
+
+    ledgerWriteAttempted = true;
+    const ledgerRecords = prepared.map(entry => [...entry.after, entry.filamentKey, 0, entry.label].map(historyCell_));
+    ledger.getRange(ledgerLastRow + 1, 1, ledgerRecords.length, 12).setValues(ledgerRecords);
+    SpreadsheetApp.flush();
+    prepared.forEach((entry, index) => {
+      const after = entry.after;
+      const note = (after[8] ? after[8] + '\n' : '') + responseNote_('完了', entry.operationId, null, after, '');
+      log.getRange(logRows[index], 12).setValue(historyCell_(note));
+    });
+    SpreadsheetApp.flush();
+    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', historyStatus:'完了', historySheet:'フォームの回答 1', action:'registerBatch', ids:prepared.map(entry => entry.id), count:prepared.length, printCount:0, operationIds:prepared.map(entry => entry.operationId)});
+  } catch (error) {
+    if (log && logRows.length) {
+      logRows.forEach((row, index) => {
+        try {
+          const entry = prepared[index];
+          log.getRange(row, 12).setValue(historyCell_(responseNote_(ledgerWriteAttempted ? '要確認' : '失敗', entry ? entry.operationId : '', null, entry ? entry.after : null, String(error.message))));
+        } catch (logError) { console.error(logError); }
+      });
+      try { SpreadsheetApp.flush(); } catch (flushError) { console.error(flushError); }
+    }
+    return jsonResponse({ok:false, error:ledgerWriteAttempted ? 'UPDATE_REQUIRES_REVIEW' : String(error.message), message:ledgerWriteAttempted ? 'フォームの回答 1と在庫台帳を確認してください。自動再送しないでください。' : String(error.message), ids:items.map(item => historyText_(item.id))});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', actions: ['updateWeight', 'updateLocation', 'register', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createFilamentMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createFilamentMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();
     }
     if (e && e.parameter && e.parameter.action === 'makerMasters') {
       return getMakerMasters_();
+    }
+    if (e && e.parameter && e.parameter.action === 'lookupBatch') {
+      return lookupBatch_(e.parameter.ids);
     }
     const id = String(e.parameter.id || "").trim();
 
@@ -122,6 +212,29 @@ function doGet(e) {
       error: error.message
     });
   }
+}
+
+function lookupBatch_(value) {
+  const ids = String(value || '').split(',').map(v => v.trim()).filter(Boolean);
+  if (ids.length < 1 || ids.length > 20 || new Set(ids).size !== ids.length || ids.some(id => !/^[SOF]\d{8}$/.test(id))) {
+    return jsonResponse({ok:false, error:'INVALID_LOOKUP_IDS', message:'確認する管理番号を1〜20件で指定してください'});
+  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('在庫台帳');
+  if (!sheet) throw new Error('在庫台帳が見つかりません');
+  const lastRow = sheet.getLastRow();
+  const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 9).getValues() : [];
+  const byId = new Map();
+  rows.forEach(row => {
+    const id = historyText_(row[0]);
+    if (!id) return;
+    if (byId.has(id)) throw new Error('DUPLICATE_ID:' + id);
+    byId.set(id, row);
+  });
+  const items = ids.map(id => {
+    const row = byId.get(id);
+    return row ? {id:id, found:true, maker:row[1], base:row[2], sub:row[3], color:row[4], location:row[5], weight:row[6], person:row[7], note:row[8]} : {id:id, found:false};
+  });
+  return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'lookupBatch', items:items});
 }
 
 function getFilamentMasters_() {

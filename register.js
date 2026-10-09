@@ -18,10 +18,49 @@
  function detail(values){$('detail').replaceChildren();for(const [label,text] of values){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=String(text??'—');$('detail').append(dt,dd)}}
  function showExisting(item,title,targetId=firstId){exists=true;unknown=false;$('entry').hidden=true;$('existing').hidden=false;$('existingTitle').textContent=title;detail([['管理番号',targetId],['メーカー',item.maker],['素材',item.base],['色',item.color],['保管場所',item.location],['重量（g）',item.weight],['担当',item.person]]);$('openItem').hidden=false;$('openItem').href='./?id='+encodeURIComponent(targetId);$('openItem').textContent='登録したフィラメントの情報を開く';const backIds=returnIds.length?returnIds:[targetId];$('createQr').href='./qr.html?ids='+encodeURIComponent(backIds.join('\n'));$('createQr').textContent=returnIds.length?'印刷予定へ戻る':'この1件だけ今すぐ印刷する';control()}
  function showBatchComplete(base,completed=ids,title=count+'本の登録が完了しました'){exists=true;unknown=false;$('entry').hidden=true;$('existing').hidden=false;$('existingTitle').textContent=title;detail([['管理番号',completed.length===1?completed[0]:completed[0]+' ～ '+completed.at(-1)],['本数',completed.length+'本'],['メーカー',base.maker],['素材',base.base],['色',base.color],['保管場所',base.location],['重量',base.weight+'g／本'],['担当',base.person]]);$('openItem').hidden=true;$('createQr').href='./qr.html?ids='+encodeURIComponent(completed.join('\n'));$('createQr').textContent='この'+completed.length+'件だけ今すぐ印刷する';control()}
- async function check(){if(busy||refreshing||!ids.length)return;refreshing=true;unknown=false;exists=false;$('retry').hidden=true;$('entry').hidden=true;$('existing').hidden=true;control();status('登録状況を確認しています…');try{const found=[];for(const targetId of ids){const item=await F.lookup(targetId);if(item)found.push({id:targetId,item})}if(found.length){if(found.length===ids.length&&ids.length>1){showBatchComplete(found[0].item,ids,ids.length+'本とも登録済みです');status('上書きはしません。')}else{showExisting(found[0].item,ids.length>1?'一括登録を開始できません':'登録済みのフィラメント',found[0].id);status(ids.length>1?found.length+'本がすでに登録済みです。重複を避けるため一括登録を開始していません。':pendingAny()?'台帳への登録を確認できました。履歴の完了状態も確認してください。':'登録済みです。上書きはしません。',ids.length>1)}return}unknown=true;$('entry').hidden=false;status(pendingAny()?'処理結果が不明な管理番号があります。履歴を確認してください。':ids.length>1?ids[0]+' ～ '+ids.at(-1)+' の '+ids.length+'本は未登録です。共通情報を入力してください。':'未登録です。内容を入力してください。')}catch(error){status(error.message,true);$('retry').hidden=false}finally{refreshing=false;control()}}
+ async function check(){
+  if(busy||refreshing||!ids.length)return;
+  refreshing=true;unknown=false;exists=false;$('retry').hidden=true;$('entry').hidden=true;$('existing').hidden=true;control();status('登録状況を確認しています…');
+  try{
+   let results;if(ids.length>1)results=await F.lookupBatch(ids);else{const item=await F.lookup(ids[0]);results=[{id:ids[0],found:Boolean(item),item}]}
+   const found=results.filter(result=>result.found).map(result=>({id:result.id,item:result.item||result}));
+   if(found.length){
+    if(found.length===ids.length&&ids.length>1){showBatchComplete(found[0].item,ids,ids.length+'本とも登録済みです');status('上書きはしません。')}
+    else{showExisting(found[0].item,ids.length>1?'一括登録を開始できません':'登録済みのフィラメント',found[0].id);status(ids.length>1?found.length+'本がすでに登録済みです。重複を避けるため一括登録を開始していません。':pendingAny()?'台帳への登録を確認できました。履歴の完了状態も確認してください。':'登録済みです。上書きはしません。',ids.length>1)}
+    return;
+   }
+   unknown=true;$('entry').hidden=false;status(pendingAny()?'処理結果が不明な管理番号があります。履歴を確認してください。':ids.length>1?ids[0]+' ～ '+ids.at(-1)+' の '+ids.length+'本は未登録です。共通情報を入力してください。':'未登録です。内容を入力してください。');
+  }catch(error){status(error.message,true);$('retry').hidden=false}
+  finally{refreshing=false;control()}
+ }
  async function loadCandidates(){try{masterItems=await F.filamentMasters();const select=$('filamentKey');select.replaceChildren(new Option('選択してください',''));masterItems.sort((a,b)=>[a.maker,a.base,a.sub,a.color].join('\u001f').localeCompare([b.maker,b.base,b.sub,b.color].join('\u001f'),'ja')).forEach(item=>{const label=[item.maker,item.product,item.base,item.sub,item.color].filter(Boolean).join(' ／ ');select.add(new Option(label,item.id))});mastersReady=masterItems.length>0;if(!mastersReady)throw Error('フィラメントマスターが空です。');try{dataRows=await F.candidates()}catch{dataRows=[]}fill('person',[...dataRows.map(r=>r['担当']),...defaults.person]);const person=F.localLoad('filamentPersonV1','');if(person){fill('person',[...dataRows.map(r=>r['担当']),person]);$('person').value=person}$('candidateStatus').textContent='フィラメントマスターから商品を選択してください。'}catch(error){mastersReady=false;$('filamentKey').replaceChildren(new Option('取得できませんでした',''));$('candidateStatus').textContent=error.message}finally{loadingCandidates=false;control()}}
  $('filamentKey').onchange=applyMaster;
- $('form').onsubmit=async event=>{event.preventDefault();if(busy||refreshing||!unknown||pendingAny()||!$('form').reportValidity())return;const base={action:'register',filamentKey:$('filamentKey').value,location:$('location').value,weight:$('weight').valueAsNumber,note:F.clean($('note').value)};definitions.forEach(([key])=>base[key]=value(key));if(!/^FL\d{6}$/.test(base.filamentKey)||definitions.some(([key])=>!base[key])||!base.note||!Number.isFinite(base.weight)||base.weight<0||base.weight>5000){status('フィラメント、必須項目、重量を確認してください。',true);return}busy=true;control();const completed=[];let currentId='';status('登録先と管理番号を確認しています…');try{await F.verify();for(const targetId of ids){if(await F.lookup(targetId))throw Error(targetId+' は別の操作で登録済みになりました。一括登録を開始していません。')}for(let i=0;i<ids.length;i++){currentId=ids[i];const payload={...base,id:currentId};pending[currentId]={at:new Date().toISOString()};F.localSave('filamentRegistrationPendingV1',pending);control();status((i+1)+'/'+ids.length+'本目（'+currentId+'）を登録しています…');const result=await F.request(F.api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(payload)});if(!result.ok){if(result.error!=='UPDATE_REQUIRES_REVIEW'){delete pending[currentId];F.localSave('filamentRegistrationPendingV1',pending)}throw Error(result.message||result.error||currentId+'を登録できませんでした。')}if(result.id!==currentId||result.action!=='register'||result.apiVersion!=='filament-form-history-v3'||result.historyStatus!=='完了'||result.historySheet!=='フォームの回答 1'||!result.operationId)throw Error(currentId+'の登録と履歴保存の結果を確認できませんでした。');delete pending[currentId];F.localSave('filamentRegistrationPendingV1',pending);F.rememberRegistration(payload);completed.push(currentId)}F.localSave('filamentPersonV1',base.person);if(ids.length>1)showBatchComplete(base);else showExisting({...base,id:firstId},'登録が完了しました。',firstId);status('在庫台帳と「フォームの回答 1」に、'+ids.length+'本を1行ずつ記録しました。')}catch(error){if(completed.length){showBatchComplete(base,completed,completed.length+'本は登録完了／残りは停止しました');status(completed.length+'本は登録済みです。重複を避けるため自動再送していません。\n'+error.message,true)}else status(currentId&&pending[currentId]?'結果を確認できません。登録済みの可能性があるため、自動再送はしていません。\n'+error.message:error.message,true)}finally{busy=false;control()}};
+ $('form').onsubmit=async event=>{
+  event.preventDefault();if(busy||refreshing||!unknown||pendingAny()||!$('form').reportValidity())return;
+  const base={action:'register',filamentKey:$('filamentKey').value,location:$('location').value,weight:$('weight').valueAsNumber,note:F.clean($('note').value)};definitions.forEach(([key])=>base[key]=value(key));
+  if(!/^FL\d{6}$/.test(base.filamentKey)||definitions.some(([key])=>!base[key])||!base.note||!Number.isFinite(base.weight)||base.weight<0||base.weight>5000){status('フィラメント、必須項目、重量を確認してください。',true);return}
+  busy=true;control();let requestStarted=false;
+  try{
+   status('登録先を確認しています…');const health=await F.verify();
+   if(ids.length>1&&!health.actions?.includes('registerBatch'))throw Error('公開中のGASは一括登録にまだ対応していません。');
+   const payloads=ids.map(id=>({...base,id}));
+   ids.forEach(id=>pending[id]={at:new Date().toISOString()});F.localSave('filamentRegistrationPendingV1',pending);control();requestStarted=true;
+   if(ids.length>1){
+    status(ids.length+'本をまとめて登録しています…');const result=await F.registerBatch(payloads);
+    if(result.ids.some((id,index)=>id!==ids[index]))throw Error('一括登録した管理番号の結果が一致しませんでした。');
+   }else{
+    const payload=payloads[0];status(payload.id+' を登録しています…');const result=await F.request(F.api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(payload)});
+    if(!result.ok){const error=Error(result.message||result.error||payload.id+'を登録できませんでした。');error.code=result.error;throw error}
+    if(result.id!==payload.id||result.action!=='register'||result.apiVersion!=='filament-form-history-v3'||result.historyStatus!=='完了'||result.historySheet!=='フォームの回答 1'||!result.operationId)throw Error(payload.id+'の登録と履歴保存の結果を確認できませんでした。');
+   }
+   ids.forEach((id,index)=>{delete pending[id];F.rememberRegistration(payloads[index])});F.localSave('filamentRegistrationPendingV1',pending);F.localSave('filamentPersonV1',base.person);
+   if(ids.length>1)showBatchComplete(base);else showExisting({...base,id:firstId},'登録が完了しました。',firstId);
+   status('在庫台帳と「フォームの回答 1」に、'+ids.length+'本を1行ずつ記録しました。');
+  }catch(error){
+   if(requestStarted&&error.code&&error.code!=='UPDATE_REQUIRES_REVIEW'){ids.forEach(id=>delete pending[id]);F.localSave('filamentRegistrationPendingV1',pending)}
+   status(requestStarted&&ids.some(id=>pending[id])?'結果を確認できません。登録済みの可能性があるため、自動再送はしていません。\n'+error.message:error.message,true);
+  }finally{busy=false;control()}
+ };
  $('check').onclick=$('retry').onclick=check;$('acknowledge').onclick=()=>{if(busy||refreshing||exists)return;ids.forEach(targetId=>delete pending[targetId]);F.localSave('filamentRegistrationPendingV1',pending);check()};
  if(!firstId){location.replace('./register-start.html');return}
  if(!ids.length){status('管理番号または本数を確認してください。1回に登録できるのは20本まで、連番は99までです。',true);$('retry').hidden=true;$('entry').hidden=true;return}
