@@ -2,7 +2,7 @@
 window.Filament = (() => {
   const api = 'https://script.google.com/macros/s/AKfycby24DTSic0qx2Y2ZqNU2RsaEuXPRSQRwdBPgshbUPI2ui8vPY1PUviEKD9QeMx5gIe3Bg/exec';
   const home = 'https://fellowship-annen.github.io/filament-manager/';
-  const csv = 'https://docs.google.com/spreadsheets/d/15UGqdqOwVQNx9qY02HtZIaqrD6Kd1dwmWuj4p3EGIGg/export?format=csv&gid=93776902';
+  const csv = 'https://docs.google.com/spreadsheets/d/1iG7fYgmrHHZy3cwKx9y9_4ddjI2qcGMeii3ekg8UoQc/export?format=csv&gid=93776902';
   const places = {S:'さんらいず',O:'オーシャン',F:'フォージー'};
   const clean = value => String(value ?? '').trim();
   function validId(id) {

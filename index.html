@@ -40,7 +40,7 @@
 <script>
 'use strict';
 const GAS_API_URL='https://script.google.com/macros/s/AKfycby24DTSic0qx2Y2ZqNU2RsaEuXPRSQRwdBPgshbUPI2ui8vPY1PUviEKD9QeMx5gIe3Bg/exec';
-const CSV_URL='https://docs.google.com/spreadsheets/d/15UGqdqOwVQNx9qY02HtZIaqrD6Kd1dwmWuj4p3EGIGg/export?format=csv&gid=93776902';
+const CSV_URL='https://docs.google.com/spreadsheets/d/1iG7fYgmrHHZy3cwKx9y9_4ddjI2qcGMeii3ekg8UoQc/export?format=csv&gid=93776902';
 const $=id=>document.getElementById(id), locations=['さんらいず','オーシャン','フォージー'];
 const text=v=>String(v??'').trim(), norm=v=>text(v).replace(/\s+/g,' '), format=v=>Number(v).toLocaleString('ja-JP',{maximumFractionDigits:3});
 let rows=[],current=null,listReady=false,busy=false,listBusy=false,searchShown=false,stream=null,timer=null,cameraEpoch=0;

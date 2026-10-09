@@ -16,5 +16,15 @@
 
 ### 公開前の確認事項
 
-- 窓口のCSV取得先は旧スプレッドシートIDのままなので、新しいスプレッドシートのURLと在庫台帳のgidへ変更する。
-- APIとCSVが同じスプレッドシートを参照していることを確認してからGitHubへ公開する。
+- CSV取得先を、新スプレッドシートの在庫台帳（gid `93776902`）へ変更した。
+- CSV 231行、必要列、新GASによる同一管理番号の取得一致を確認した。
+- メーカーマスター17件、フィラメントマスター92件の取得を確認した。
+- APIとCSVが同じスプレッドシートを参照していることを確認済み。
+
+### 旧CSV（切戻し用記録）
+
+`https://docs.google.com/spreadsheets/d/15UGqdqOwVQNx9qY02HtZIaqrD6Kd1dwmWuj4p3EGIGg/export?format=csv&gid=93776902`
+
+### 新CSV
+
+`https://docs.google.com/spreadsheets/d/1iG7fYgmrHHZy3cwKx9y9_4ddjI2qcGMeii3ekg8UoQc/export?format=csv&gid=93776902`
