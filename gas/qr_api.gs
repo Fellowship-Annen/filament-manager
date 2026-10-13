@@ -535,6 +535,11 @@ function mutateWithHistory_(data, action) {
     if (action === 'register' && index >= 0) throw new Error('ID_ALREADY_EXISTS');
     if (action !== 'register' && index < 0) throw new Error('ID_NOT_FOUND');
     before = index >= 0 ? rows[index].slice() : null;
+    if (action === 'updateWeight' && data.expectedWeight !== undefined) {
+      const expectedWeight = historyWeight_(data.expectedWeight, false);
+      const currentWeight = historyWeight_(before[6], false);
+      if (currentWeight !== expectedWeight) throw new Error('現在残量が別の操作で変更されています。データを再取得してから、使用重量を入力し直してください');
+    }
 
     if (action === 'register') {
       after = [id, historyText_(data.maker), historyText_(data.base), historyText_(data.sub),

@@ -14,6 +14,8 @@ reset();let r=ctx.updateWeight({id:'S26092801',weight:0,person:'新担当'});ass
 r=ctx.updateLocation({id:'S26092801',location:'オーシャン',person:'別担当'});assert(r.ok);assert.equal(sheets['在庫台帳'].rows[1][0],'S26092801');assert.equal(sheets['在庫台帳'].rows[1][6],0);
 reset();r=ctx.updateWeight({id:'S26092801',weight:'',person:'新担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);
 r=ctx.updateWeight({id:'S26092801',weight:500});assert(!r.ok);
+reset();r=ctx.updateWeight({id:'S26092801',weight:642,expectedWeight:800,person:'新担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);assert.equal(sheets['フォームの回答 1'].rows.length,1);
+reset();r=ctx.updateWeight({id:'S26092801',weight:642,expectedWeight:842,person:'新担当'});assert(r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],642);
 reset();failLedger=true;r=ctx.updateWeight({id:'S26092801',weight:500,person:'新担当'});assert.equal(r.error,'UPDATE_REQUIRES_REVIEW');assert(sheets['フォームの回答 1'].rows[1][11].includes('要確認'));
 reset();failLog=true;r=ctx.updateWeight({id:'S26092801',weight:500,person:'新担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);
 reset();r=ctx.registerFilament({id:'O26092801',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'なし'});assert(r.ok);assert.equal(sheets['フォームの回答 1'].rows[1][1],'入荷');assert.equal(sheets['在庫台帳'].rows[2][1],'Master Maker');assert.equal(sheets['在庫台帳'].rows[2][9],'FL000001');assert.equal(sheets['在庫台帳'].rows[2][10],0);assert.equal(r.printCount,0);r=ctx.registerFilament({id:'O26092801',filamentKey:'FL000001',location:'オーシャン',person:'担当'});assert.equal(r.error,'ID_ALREADY_EXISTS');
