@@ -6,6 +6,7 @@ function doPost(e) {
 
     if (action === "markPrinted") return markPrinted(data);
     if (action === "updateLabel") return updateLabel(data);
+    if (action === "createMakerMaster") return createMakerMaster(data);
     if (action === "createFilamentMaster") return createFilamentMaster(data);
     if (action === "registerBatch") return registerFilamentBatch(data);
 
@@ -138,7 +139,7 @@ function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createFilamentMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'provisionalMasters'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();
@@ -252,13 +253,13 @@ function getFilamentMasters_() {
   const makers = new Map();
   makerRows.slice(1).forEach(row => {
     const makerId = historyText_(row[0]).toUpperCase();
-    if (makerId) makers.set(makerId, {name: historyText_(row[1]), spoolWeight: row[2] === '' ? null : Number(row[2])});
+    if (makerId) makers.set(makerId, {name: historyText_(row[1]), spoolWeight: row[2] === '' ? null : Number(row[2]), status:historyText_(row[4]) || '正式'});
   });
   const items = filamentRows.slice(1).map(row => {
     const id = historyText_(row[0]).toUpperCase(), makerId = historyText_(row[1]).toUpperCase(), maker = makers.get(makerId);
     if (!id && !makerId) return null;
     if (!/^FL\d{6}$/.test(id) || !maker) throw new Error('フィラメントマスターのIDまたはメーカー参照を確認してください');
-    return {id:id, makerId:makerId, maker:maker.name, product:historyText_(row[2]), base:historyText_(row[3]), sub:historyText_(row[4]), color:historyText_(row[5]), aliases:historyText_(row[6]), purchaseUrl:historyText_(row[7]), note:historyText_(row[8]), spoolWeight:Number.isFinite(maker.spoolWeight) ? maker.spoolWeight : null};
+    return {id:id, makerId:makerId, maker:maker.name, product:historyText_(row[2]), base:historyText_(row[3]), sub:historyText_(row[4]), color:historyText_(row[5]), aliases:historyText_(row[6]), purchaseUrl:historyText_(row[7]), note:historyText_(row[8]), status:historyText_(row[9]) || '正式', makerStatus:maker.status, spoolWeight:Number.isFinite(maker.spoolWeight) ? maker.spoolWeight : null};
   }).filter(Boolean);
   return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'filamentMasters', items:items});
 }
@@ -278,7 +279,7 @@ function getMakerMasters_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('メーカーマスター');
   masterHeaders_(sheet, [/^メーカーID$/, /^メーカー名$/, /標準空スプール重量/, /メーカー別名/], 'メーカーマスター');
   const lastRow = sheet.getLastRow();
-  const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 4).getValues() : [];
+  const rows = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 5).getValues() : [];
   const ids = new Set(), names = new Set();
   const items = rows.map(row => {
     const id = historyText_(row[0]).toUpperCase(), name = historyText_(row[1]);
@@ -289,7 +290,7 @@ function getMakerMasters_() {
     ids.add(id); names.add(normalizedName);
     const rawWeight = row[2], spoolWeight = rawWeight === '' ? null : Number(rawWeight);
     if (spoolWeight !== null && (!Number.isFinite(spoolWeight) || spoolWeight < 0 || spoolWeight > 2000)) throw new Error('標準空スプール重量を確認してください');
-    return {id:id, name:name, spoolWeight:spoolWeight, aliases:historyText_(row[3])};
+    return {id:id, name:name, spoolWeight:spoolWeight, aliases:historyText_(row[3]), status:historyText_(row[4]) || '正式'};
   }).filter(Boolean);
   return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'makerMasters', items:items});
 }
@@ -301,6 +302,37 @@ function masterValue_(value, name, required, maxLength) {
   return text;
 }
 
+function ensureMasterStatusHeader_(sheet, column) {
+  const value = historyText_(sheet.getRange(1, column).getValues()[0][0]);
+  if (!value) sheet.getRange(1, column).setValue('状態');
+  else if (value !== '状態') throw new Error(sheet.getName() + 'の' + column + '列は「状態」列として空けてください');
+}
+
+function createMakerMaster(data) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('メーカーマスター');
+    masterHeaders_(sheet, [/^メーカーID$/, /^メーカー名$/, /標準空スプール重量/, /メーカー別名/], 'メーカーマスター');
+    ensureMasterStatusHeader_(sheet, 5);
+    const name = masterValue_(data.name, 'メーカー名', true, 100);
+    const rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues() : [];
+    const normalized = name.normalize('NFKC').toLowerCase();
+    const duplicate = rows.find(row => historyText_(row[1]).normalize('NFKC').toLowerCase() === normalized);
+    if (duplicate) return jsonResponse({ok:false, error:'MAKER_ALREADY_EXISTS', message:'同じ名前のメーカーがすでにあります', existingId:historyText_(duplicate[0])});
+    const numbers = rows.map(row => historyText_(row[0]).toUpperCase()).filter(id => /^MK\d{3}$/.test(id)).map(id => Number(id.slice(2)));
+    if (rows.some(row => historyText_(row[0]) && !/^MK\d{3}$/.test(historyText_(row[0]).toUpperCase()))) throw new Error('メーカーマスターのID形式を確認してください');
+    const next = Math.max(0, ...numbers) + 1;
+    if (next > 999) throw new Error('メーカーIDの上限に達しました');
+    const id = 'MK' + String(next).padStart(3, '0');
+    sheet.appendRow([id, name, '', '', '要整備'].map(historyCell_));
+    SpreadsheetApp.flush();
+    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'createMakerMaster', id:id, name:name, status:'要整備'});
+  } catch (error) {
+    return jsonResponse({ok:false, error:String(error.message), message:String(error.message)});
+  } finally { lock.releaseLock(); }
+}
+
 function createFilamentMaster(data) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -310,6 +342,7 @@ function createFilamentMaster(data) {
     const filamentSheet = book.getSheetByName('フィラメントマスター');
     masterHeaders_(makerSheet, [/^メーカーID$/, /^メーカー名$/, /標準空スプール重量/, /メーカー別名/], 'メーカーマスター');
     masterHeaders_(filamentSheet, [/^フィラメントID$/, /^メーカーID$/, /商品名|シリーズ名/, /^素材$/, /サブカテゴリ/, /^色$/, /検索別名/, /購入先URL/, /備考/], 'フィラメントマスター');
+    ensureMasterStatusHeader_(filamentSheet, 10);
 
     const makerId = masterValue_(data.makerId, 'メーカー', true, 5).toUpperCase();
     if (!/^MK\d{3}$/.test(makerId)) throw new Error('メーカーIDを確認してください');
@@ -317,10 +350,11 @@ function createFilamentMaster(data) {
     const makerMatches = makerRows.filter(row => historyText_(row[0]).toUpperCase() === makerId);
     if (makerMatches.length !== 1) throw new Error(makerMatches.length ? 'メーカーIDが重複しています' : 'メーカーが見つかりません');
 
-    const product = masterValue_(data.product, '商品名・シリーズ名', false, 100);
-    const base = masterValue_(data.base, '素材', true, 50);
-    const sub = masterValue_(data.sub, 'サブカテゴリ', true, 50);
-    const color = masterValue_(data.color, '色', true, 80);
+    const provisional = data.provisional === true;
+    const product = masterValue_(data.product, provisional ? '仮の商品名・識別名' : '商品名・シリーズ名', provisional, 100);
+    const base = provisional ? '未設定' : masterValue_(data.base, '素材', true, 50);
+    const sub = provisional ? '未設定' : masterValue_(data.sub, 'サブカテゴリ', true, 50);
+    const color = provisional ? '未設定' : masterValue_(data.color, '色', true, 80);
     const aliases = masterValue_(data.aliases, '検索別名', false, 300);
     const purchaseUrl = masterValue_(data.purchaseUrl, '購入先URL', false, 500);
     const note = masterValue_(data.note, '備考', false, 1000);
@@ -329,7 +363,7 @@ function createFilamentMaster(data) {
     const lastRow = filamentSheet.getLastRow();
     const rows = lastRow > 1 ? filamentSheet.getRange(2, 1, lastRow - 1, 9).getValues() : [];
     const normalized = value => historyText_(value).normalize('NFKC').toLowerCase();
-    const duplicate = rows.find(row => historyText_(row[1]).toUpperCase() === makerId && normalized(row[3]) === normalized(base) && normalized(row[4]) === normalized(sub) && normalized(row[5]) === normalized(color));
+    const duplicate = rows.find(row => historyText_(row[1]).toUpperCase() === makerId && (provisional ? normalized(row[2]) === normalized(product) : normalized(row[3]) === normalized(base) && normalized(row[4]) === normalized(sub) && normalized(row[5]) === normalized(color)));
     if (duplicate) {
       return jsonResponse({ok:false, error:'MASTER_ALREADY_EXISTS', message:'同じメーカー・素材・サブカテゴリ・色のフィラメントがすでにあります', existingId:historyText_(duplicate[0]).toUpperCase()});
     }
@@ -339,9 +373,10 @@ function createFilamentMaster(data) {
     if (next > 999999) throw new Error('フィラメントIDの上限に達しました');
     const id = 'FL' + String(next).padStart(6, '0');
     if (rows.some(row => historyText_(row[0]).toUpperCase() === id)) throw new Error('採番したフィラメントIDが重複しています');
-    filamentSheet.appendRow([id, makerId, product, base, sub, color, aliases, purchaseUrl, note].map(historyCell_));
+    const status = provisional ? '要整備' : '正式';
+    filamentSheet.appendRow([id, makerId, product, base, sub, color, aliases, purchaseUrl, note, status].map(historyCell_));
     SpreadsheetApp.flush();
-    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'createFilamentMaster', id:id, makerId:makerId, maker:historyText_(makerMatches[0][1]), product:product, base:base, sub:sub, color:color, aliases:aliases, purchaseUrl:purchaseUrl, note:note});
+    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'createFilamentMaster', id:id, makerId:makerId, maker:historyText_(makerMatches[0][1]), product:product, base:base, sub:sub, color:color, aliases:aliases, purchaseUrl:purchaseUrl, note:note, status:status});
   } catch (error) {
     return jsonResponse({ok:false, error:String(error.message), message:String(error.message)});
   } finally {

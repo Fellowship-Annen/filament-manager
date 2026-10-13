@@ -2,6 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 let sheets,failLedger=false,failLog=false;
 class Sheet {
  constructor(name,rows=[]){this.name=name;this.rows=rows}
+ getName(){return this.name}
  appendRow(row){this.getRange(this.rows.length+1,1,1,row.length).setValues([row])}
  getLastRow(){return this.rows.length} setFrozenRows(){}
  getDataRange(){return this.getRange(1,1,this.rows.length,Math.max(...this.rows.map(row=>row.length)))}
@@ -9,7 +10,7 @@ class Sheet {
 }
 const ctx={console,SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:n=>sheets[n],insertSheet:n=>sheets[n]=new Sheet(n)}),flush(){}},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},Utilities:{getUuid:()=>String(Math.random())},ContentService:{MimeType:{JSON:'json'},createTextOutput:s=>({setMimeType:()=>JSON.parse(s)})}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('gas/qr_api.gs','utf8'),ctx);
-function reset(){sheets={'在庫台帳':new Sheet('在庫台帳',[['管理番号','メーカー','母材','サブカテゴリ','色','保管場所','重量','担当','備考','フィラメントキー','印刷回数','ラベル注釈'],['S26092801','A','PLA','','白','さんらいず',842,'旧担当','備考','','','']])};sheets['フォームの回答 1']=new Sheet('フォームの回答 1',[['タイムスタンプ','入荷／使用／保管場所移動','管理番号(半角)','重量(g)','担当','色','母材(ベース)','サブカテゴリ','メーカー','保管場所','本数','備考']]);sheets['メーカーマスター']=new Sheet('メーカーマスター',[['メーカーID','メーカー名','標準空スプール重量（g）','メーカー別名'],['MK001','Master Maker',180,'A']]);sheets['フィラメントマスター']=new Sheet('フィラメントマスター',[['フィラメントID','メーカーID','商品名・シリーズ名','素材','サブカテゴリ','色','検索別名','購入先URL','備考'],['FL000001','MK001','Test PLA','PLA','標準','白','','','']]);failLedger=failLog=false}
+function reset(){sheets={'在庫台帳':new Sheet('在庫台帳',[['管理番号','メーカー','母材','サブカテゴリ','色','保管場所','重量','担当','備考','フィラメントキー','印刷回数','ラベル注釈'],['S26092801','A','PLA','','白','さんらいず',842,'旧担当','備考','','','']])};sheets['フォームの回答 1']=new Sheet('フォームの回答 1',[['タイムスタンプ','入荷／使用／保管場所移動','管理番号(半角)','重量(g)','担当','色','母材(ベース)','サブカテゴリ','メーカー','保管場所','本数','備考']]);sheets['メーカーマスター']=new Sheet('メーカーマスター',[['メーカーID','メーカー名','標準空スプール重量（g）','メーカー別名','状態'],['MK001','Master Maker',180,'A','正式']]);sheets['フィラメントマスター']=new Sheet('フィラメントマスター',[['フィラメントID','メーカーID','商品名・シリーズ名','素材','サブカテゴリ','色','検索別名','購入先URL','備考','状態'],['FL000001','MK001','Test PLA','PLA','標準','白','','','','正式']]);failLedger=failLog=false}
 reset();let r=ctx.updateWeight({id:'S26092801',weight:0,person:'新担当'});assert(r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],0);assert.equal(sheets['フォームの回答 1'].rows[1].length,12);assert(sheets['フォームの回答 1'].rows[1][11].includes('842'));assert(sheets['フォームの回答 1'].rows[1][11].includes('完了'));
 r=ctx.updateLocation({id:'S26092801',location:'オーシャン',person:'別担当'});assert(r.ok);assert.equal(sheets['在庫台帳'].rows[1][0],'S26092801');assert.equal(sheets['在庫台帳'].rows[1][6],0);
 reset();r=ctx.updateWeight({id:'S26092801',weight:'',person:'新担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);
@@ -32,6 +33,10 @@ console.log('PASS: maker list, master auto-numbering, duplicate rejection, URL a
 
 const healthResponse=ctx.doGet({parameter:{action:'health'}});assert(healthResponse.ok);assert(healthResponse.features.includes('expectedWeightCheck'));
 console.log('PASS: health response advertises expected-weight protection.');
+
+reset();r=ctx.createMakerMaster({name:'Quick Maker',provisional:true});assert(r.ok);assert.equal(r.id,'MK002');assert.equal(sheets['メーカーマスター'].rows[2][4],'要整備');
+r=ctx.createFilamentMaster({makerId:'MK002',product:'Gold sample',provisional:true});assert(r.ok);assert.equal(r.id,'FL000002');assert.equal(r.base,'未設定');assert.equal(r.status,'要整備');assert.equal(sheets['フィラメントマスター'].rows[2][9],'要整備');
+console.log('PASS: provisional maker and filament creation.');
 
 reset();const lookupBatch=ctx.doGet({parameter:{action:'lookupBatch',ids:'S26092801,O26092801'}});assert(lookupBatch.ok);assert.equal(lookupBatch.items.length,2);assert.equal(lookupBatch.items[0].found,true);assert.equal(lookupBatch.items[1].found,false);
 r=ctx.registerFilamentBatch({items:[

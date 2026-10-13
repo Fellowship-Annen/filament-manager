@@ -70,6 +70,14 @@ window.Filament = (() => {
     if(data.action!=='createFilamentMaster'||!/^FL\d{6}$/.test(clean(data.id)))throw Error('フィラメントマスターの追加結果が一致しません。');
     return data;
   }
+  async function createMakerMaster(item) {
+    const health=await verify();
+    if(!health.ok||!health.actions?.includes('createMakerMaster'))throw Error('公開中のGASはメーカーの仮追加にまだ対応していません。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'createMakerMaster',...item})});
+    if(!data.ok)throw Error(data.message||data.error||'メーカーを仮追加できませんでした。');
+    if(data.action!=='createMakerMaster'||!/^MK\d{3}$/.test(clean(data.id)))throw Error('メーカー追加の結果が一致しません。');
+    return data;
+  }
   async function candidates() {
     if(typeof Papa==='undefined')throw Error('候補の読込機能を取得できません。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
@@ -100,5 +108,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,createMakerMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();

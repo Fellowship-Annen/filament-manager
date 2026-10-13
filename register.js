@@ -1,7 +1,7 @@
 'use strict';
 (() => {
  const F=window.Filament,$=id=>document.getElementById(id),params=new URLSearchParams(location.search);
- const firstId=F.clean(params.get('id')),requested=Number(params.get('count')||1),firstSerial=Number(firstId.slice(-2));
+ const firstId=F.clean(params.get('id')),requested=Number(params.get('count')||1),firstSerial=Number(firstId.slice(-2)),requestedFilamentKey=F.clean(params.get('filamentKey')).toUpperCase();
  const returnIds=(params.get('returnIds')||'').split(/\r?\n/).map(F.clean).filter(F.validId).slice(0,20);
  const count=Number.isInteger(requested)&&requested>=1&&requested<=20?requested:0;
  const ids=count&&F.validId(firstId)&&firstSerial+count-1<=99?Array.from({length:count},(_,i)=>firstId.slice(0,-2)+String(firstSerial+i).padStart(2,'0')):[];
@@ -33,7 +33,7 @@
   }catch(error){status(error.message,true);$('retry').hidden=false}
   finally{refreshing=false;control()}
  }
- async function loadCandidates(){try{masterItems=await F.filamentMasters();const select=$('filamentKey');select.replaceChildren(new Option('選択してください',''));masterItems.sort((a,b)=>[a.maker,a.base,a.sub,a.color].join('\u001f').localeCompare([b.maker,b.base,b.sub,b.color].join('\u001f'),'ja')).forEach(item=>{const label=[item.maker,item.product,item.base,item.sub,item.color].filter(Boolean).join(' ／ ');select.add(new Option(label,item.id))});mastersReady=masterItems.length>0;if(!mastersReady)throw Error('フィラメントマスターが空です。');try{dataRows=await F.candidates()}catch{dataRows=[]}fill('person',[...dataRows.map(r=>r['担当']),...defaults.person]);const person=F.localLoad('filamentPersonV1','');if(person){fill('person',[...dataRows.map(r=>r['担当']),person]);$('person').value=person}$('candidateStatus').textContent='フィラメントマスターから商品を選択してください。'}catch(error){mastersReady=false;$('filamentKey').replaceChildren(new Option('取得できませんでした',''));$('candidateStatus').textContent=error.message}finally{loadingCandidates=false;control()}}
+ async function loadCandidates(){try{masterItems=await F.filamentMasters();const select=$('filamentKey');select.replaceChildren(new Option('選択してください',''));masterItems.sort((a,b)=>[a.maker,a.base,a.sub,a.color].join('\u001f').localeCompare([b.maker,b.base,b.sub,b.color].join('\u001f'),'ja')).forEach(item=>{const label=[item.status==='要整備'?'【仮】':'',item.maker,item.product,item.base,item.sub,item.color].filter(Boolean).join(' ／ ');select.add(new Option(label,item.id))});mastersReady=masterItems.length>0;if(!mastersReady)throw Error('フィラメントマスターが空です。');if(requestedFilamentKey&&masterItems.some(item=>item.id===requestedFilamentKey)){select.value=requestedFilamentKey;applyMaster()}try{dataRows=await F.candidates()}catch{dataRows=[]}fill('person',[...dataRows.map(r=>r['担当']),...defaults.person]);const person=F.localLoad('filamentPersonV1','');if(person){fill('person',[...dataRows.map(r=>r['担当']),person]);$('person').value=person}if(!select.value)$('candidateStatus').textContent='フィラメントマスターから商品を選択してください。'}catch(error){mastersReady=false;$('filamentKey').replaceChildren(new Option('取得できませんでした',''));$('candidateStatus').textContent=error.message}finally{loadingCandidates=false;control()}}
  $('filamentKey').onchange=applyMaster;
  $('form').onsubmit=async event=>{
   event.preventDefault();if(busy||refreshing||!unknown||pendingAny()||!$('form').reportValidity())return;
