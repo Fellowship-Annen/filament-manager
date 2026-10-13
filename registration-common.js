@@ -56,8 +56,6 @@ window.Filament = (() => {
     return data.items;
   }
   async function makerMasters() {
-    const healthUrl=new URL(api);healthUrl.searchParams.set('action','health');const health=await request(healthUrl);
-    if(!health.ok||!health.actions?.includes('makerMasters'))throw Error('公開中のGASはメーカーマスターの取得にまだ対応していません。');
     const url=new URL(api);url.searchParams.set('action','makerMasters');const data=await request(url);
     if(!data.ok||data.action!=='makerMasters'||!Array.isArray(data.items))throw Error(data.message||data.error||'メーカーマスターを取得できません。');
     return data.items;
