@@ -5,8 +5,13 @@
 <section id="entry" class="panel" hidden><form id="form"><fieldset id="fields">
 <label class="field" for="id">管理番号</label><input id="id" readonly>
 <label class="field" for="location">保管場所（必須）</label><select id="location" required><option>さんらいず</option><option>オーシャン</option><option>フォージー</option></select>
-<label class="field" for="filamentKey">フィラメント（必須）</label><select id="filamentKey" required><option value="">読込中…</option></select><p class="muted">フィラメントマスターから選択します。メーカー・素材・種類・色は選択内容から自動入力します。</p><a id="addMaster" class="button full" href="./master-register.html">候補にない商品をマスターへ追加</a>
-<div id="choices"></div><p id="candidateStatus" class="muted" aria-live="polite"></p>
+<label class="field" for="makerFilter">メーカー（必須）</label><select id="makerFilter" required disabled><option value="">読込中…</option></select>
+<details id="filterDetails" class="filter-details"><summary>素材・色でさらに絞り込む（任意）</summary><div class="split"><label>素材<select id="materialFilter"><option value="">すべて</option></select></label><label>色<select id="colorFilter"><option value="">すべて</option></select></label></div></details>
+<label class="field" for="filamentKey">商品（必須）</label><select id="filamentKey" required disabled><option value="">先にメーカーを選択してください</option></select><p id="candidateStatus" class="muted" aria-live="polite">メーカーを選ぶと、そのメーカーの商品だけを表示します。</p>
+<div id="masterSummary" class="master-summary" hidden><strong id="masterSummaryTitle"></strong><span id="masterSummaryDetail"></span></div>
+<input id="maker" type="hidden"><input id="base" type="hidden"><input id="color" type="hidden"><input id="sub" type="hidden">
+<a id="addMaster" class="button full" href="./master-register.html">候補にない商品をマスターへ追加</a>
+<div id="choices"></div>
 <label class="field" for="weight">登録する重量（g・必須）</label><input id="weight" type="number" min="0" max="5000" step="any" inputmode="decimal" value="1000" required><p class="muted">入力した値をそのまま登録します。自動風袋引きはまだ行いません。</p>
 <label class="field" for="note">備考（必須）</label><textarea id="note" required maxlength="1000" placeholder="購入先・用途など"></textarea>
 <button id="submit" type="submit" class="primary full">この内容で登録する</button></fieldset></form></section>
