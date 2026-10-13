@@ -10,8 +10,8 @@
 </head>
 <body>
 <main class="wrap" id="main">
-<header><h1>フィラメント管理</h1><span class="muted">新窓口</span></header>
-<button id="scan" class="primary full scan" type="button">QRを読み取る</button><p class="muted scan-help">情報表示・重量更新</p>
+<header><h1>フィラメント在庫管理</h1></header>
+<button id="scan" class="primary full scan" type="button">QRを読み取る</button><p class="muted scan-help">在庫確認・重量更新</p>
 <p id="status" class="status" role="status" aria-live="polite">在庫データを取得しています…</p>
 <section id="unregistered" class="panel" hidden><h2>未登録の管理番号です</h2><p id="unregisteredId"></p><a id="registerLink" style="display:inline-block;padding:14px;color:#126b58" href="./register.html">このIDで新規登録</a></section>
 <section id="itemPanel" class="panel" hidden aria-label="読み取ったフィラメント">
@@ -28,10 +28,10 @@
 <div id="uncertain" class="note" hidden>前回の更新結果を確認できていません。重複更新を避けるため、この物品の更新を停止しています。「データを再取得」で現在値を確認し、フォームの回答 1も確認してください。<button id="acknowledge" type="button" class="full gap">フォームの回答 1を確認済み・更新を再開</button></div>
 </section>
 <section id="stockPanel" class="panel" hidden><h2>同じ種類の在庫</h2><div id="stockKind" class="muted"></div><div class="checks" id="stockFilters"><label><input type="checkbox" value="ALL">ALL（全場所）</label><label><input type="checkbox" value="さんらいず">さんらいず</label><label><input type="checkbox" value="オーシャン">オーシャン</label><label><input type="checkbox" value="フォージー">フォージー</label></div><div class="total"><div class="row"><span>重量合計</span><strong id="stockTotal"></strong></div><div id="stockNote" class="muted"></div></div><div class="muted">ほかの在庫（重量があるもの）</div><div class="stockrow stockhead"><span>管理番号</span><span>保管場所</span><span>重量</span></div><div id="stockRows"></div></section>
-<section class="panel"><a class="task-link task-primary" href="./register-start.html"><strong>入荷したフィラメントを登録・QR印刷</strong><span>新しい管理番号で在庫へ登録します。QRはすぐに印刷するか、後でまとめて印刷できます。</span></a></section>
-<section class="panel"><details id="searchDetails"><summary>在庫を条件から探す</summary><p class="muted">メーカー・素材・色から、残っているフィラメントを探します。</p><form id="searchForm"><label class="field" for="maker">1. メーカー</label><select id="maker" disabled></select><label class="field" for="base">2. 素材</label><select id="base" disabled></select><label class="field" for="color">3. 色</label><select id="color" disabled></select><label class="field" for="searchLocation">保管場所</label><select id="searchLocation"><option value="ALL">ALL（全場所）</option><option>さんらいず</option><option>オーシャン</option><option>フォージー</option></select><button id="searchButton" type="submit" class="primary full gap" disabled>在庫を表示</button></form><div id="searchResults" class="gap" aria-live="polite"></div></details></section>
-<section class="panel"><a class="task-link task-secondary" href="./print-list.html?state=printed"><strong>QRラベルを再印刷</strong><span>破損・紛失したQRを、在庫一覧から選んで印刷します。</span></a><a class="task-link task-secondary" href="./qr.html?mode=custom"><strong>管理番号を指定してQR印刷</strong><span>登録済みの管理番号が分かっている場合に、直接入力してQRを作成します。</span></a></section>
-<button id="refresh" type="button" class="full gap">データを再取得</button><p id="listStatus" class="muted status" aria-live="polite"></p>
+<section class="panel"><a class="task-link task-primary" href="./register-start.html"><strong>入荷登録・QR印刷</strong><span>新しいフィラメントを在庫へ登録します。QRは後からまとめて印刷できます。</span></a></section>
+<section class="panel"><details id="searchDetails"><summary>在庫検索</summary><p class="muted">メーカー・素材・色から、残っているフィラメントを探します。</p><form id="searchForm"><label class="field" for="maker">1. メーカー</label><select id="maker" disabled></select><label class="field" for="base">2. 素材</label><select id="base" disabled></select><label class="field" for="color">3. 色</label><select id="color" disabled></select><label class="field" for="searchLocation">保管場所</label><select id="searchLocation"><option value="ALL">ALL（全場所）</option><option>さんらいず</option><option>オーシャン</option><option>フォージー</option></select><button id="searchButton" type="submit" class="primary full gap" disabled>在庫を表示</button></form><div id="searchResults" class="gap" aria-live="polite"></div></details></section>
+<section class="panel"><details id="printDetails"><summary>QR印刷</summary><p class="muted">未印刷のラベル作成や、破損したQRの再印刷を行います。</p><a class="task-link task-primary" href="./print-list.html?state=pending"><strong>未印刷のQRをまとめて印刷</strong><span>入荷登録済みで、まだ印刷していないQRを選びます。</span></a><a class="task-link task-secondary" href="./print-list.html?state=printed"><strong>印刷済みのQRを再印刷</strong><span>破損・紛失したQRを在庫一覧から選びます。</span></a><a class="task-link task-secondary" href="./qr.html?mode=custom"><strong>管理番号を直接入力</strong><span>登録済みの管理番号からQRを作成します。</span></a></details></section>
+<button id="refresh" type="button" class="full gap">最新の在庫情報に更新</button><p id="listStatus" class="muted status" aria-live="polite"></p>
 </main>
 <div id="camera" hidden><video id="video" playsinline muted></video><div id="scanFrame"></div><div id="cameraHint">QRを枠に合わせてください。認識すると自動で戻ります。</div><button id="cameraClose" type="button">カメラを閉じる</button><canvas id="canvas" hidden></canvas></div>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
