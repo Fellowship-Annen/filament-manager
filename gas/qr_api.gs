@@ -138,7 +138,7 @@ function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createFilamentMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createFilamentMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();

@@ -30,6 +30,9 @@ r=ctx.createFilamentMaster({makerId:'MK001',base:'PETG',sub:'標準',color:'透�
 r=ctx.createFilamentMaster({makerId:'MK999',base:'PETG',sub:'標準',color:'透明'});assert(!r.ok);assert.equal(sheets['フィラメントマスター'].rows.length,3);
 console.log('PASS: maker list, master auto-numbering, duplicate rejection, URL and maker validation.');
 
+const healthResponse=ctx.doGet({parameter:{action:'health'}});assert(healthResponse.ok);assert(healthResponse.features.includes('expectedWeightCheck'));
+console.log('PASS: health response advertises expected-weight protection.');
+
 reset();const lookupBatch=ctx.doGet({parameter:{action:'lookupBatch',ids:'S26092801,O26092801'}});assert(lookupBatch.ok);assert.equal(lookupBatch.items.length,2);assert.equal(lookupBatch.items[0].found,true);assert.equal(lookupBatch.items[1].found,false);
 r=ctx.registerFilamentBatch({items:[
  {id:'O26092801',filamentKey:'FL000001',location:'オーシャン',person:'担当',weight:1000,note:'一括'},
