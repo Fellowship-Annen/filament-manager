@@ -6,9 +6,8 @@
 <button id="addMaker" class="button full" type="button">一覧にないメーカーを仮追加</button>
 <div id="makerQuick" class="notice" hidden><label class="field" for="makerName">メーカー名</label><input id="makerName" maxlength="100" placeholder="例：NovaFil"><button id="saveMaker" class="button primary full" type="button">この名前で仮追加</button><button id="cancelMaker" class="button full" type="button">戻る</button><p class="muted">別名や空スプール重量は、あとでマスター管理から補完します。</p></div>
 <label class="field" for="entryMode">登録方法</label><select id="entryMode"><option value="quick">急ぎなので仮登録する</option><option value="full">分かる情報をすべて登録する</option></select>
-<div id="quickFields"><label class="field" for="temporaryName">仮の商品名・識別名（必須）</label><input id="temporaryName" maxlength="100" placeholder="例：シルクゴールド"><p class="muted">素材や色が未確認でも登録できます。詳細はあとで整備します。</p></div>
+<div id="quickFields"><label class="field" for="temporaryName">後で見分けるための仮メモ（必須）</label><input id="temporaryName" maxlength="100" placeholder="例：新しく届いた金色"><p class="muted">正式な商品名ではありません。素材や色が未確認でも、あとで見分けられる短いメモを入力します。</p></div>
 <div id="fullFields" hidden>
-<label class="field" for="product">商品名・シリーズ名</label><input id="product" maxlength="100" placeholder="例：PLA Basic">
 <label class="field" for="base">素材（必須）</label><input id="base" maxlength="50" required placeholder="例：PLA、ASA">
 <label class="field" for="sub">サブカテゴリ（必須）</label><input id="sub" maxlength="50" required placeholder="例：標準、マット、silk">
 <label class="field" for="color">色（必須）</label><input id="color" maxlength="80" required placeholder="正式表示に使う色名">

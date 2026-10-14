@@ -13,7 +13,7 @@
  function value(key){return $(key).value==='__custom__'?F.clean($(key+'Custom').value):F.clean($(key).value)}
  function control(){$('fields').disabled=busy||refreshing||loadingCandidates||!mastersReady||!unknown||pendingAny();$('retry').disabled=$('check').disabled=$('acknowledge').disabled=busy||refreshing;$('uncertain').hidden=!pendingAny();$('acknowledge').hidden=exists}
  function fill(key,values){const selected=$(key).value,select=$(key);select.replaceChildren(new Option('選択してください',''));[...new Set(values.map(F.clean).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja')).forEach(v=>select.add(new Option(v,v)));if(selected&&selected!=='__custom__'&&!values.includes(selected))select.add(new Option(selected,selected));select.add(new Option('候補にない名前を入力','__custom__'));select.value=selected}
- function itemName(item){return F.clean(item.product)||[item.base,item.sub,item.color].map(F.clean).filter(Boolean).join('・')||item.id}
+ function itemName(item){const classified=[item.base,item.sub,item.color].map(F.clean).filter(value=>value&&value!=='未設定').join('・');return item.status==='要整備'&&F.clean(item.product)?F.clean(item.product):classified||item.id}
  function unique(values){return [...new Set(values.map(F.clean).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'))}
  function fillFilter(id,values,label='すべて'){const select=$(id),selected=select.value;select.replaceChildren(new Option(label,''));unique(values).forEach(value=>select.add(new Option(value,value)));if([...select.options].some(option=>option.value===selected))select.value=selected}
  function renderProducts(preferred=''){
