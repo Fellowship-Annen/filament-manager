@@ -76,6 +76,20 @@ window.Filament = (() => {
     if(data.action!=='createMakerMaster'||!/^MK\d{3}$/.test(clean(data.id)))throw Error('メーカー追加の結果が一致しません。');
     return data;
   }
+  async function masterMaintenancePreview(filamentId) {
+    const url=new URL(api);url.searchParams.set('action','masterMaintenancePreview');url.searchParams.set('filamentId',filamentId);const data=await request(url);
+    if(!data.ok)throw Error(data.message||data.error||'整備対象を確認できませんでした。');
+    if(data.action!=='masterMaintenancePreview'||clean(data.item?.id)!==filamentId||!Number.isInteger(data.affectedCount)||data.affectedCount<0)throw Error('整備対象の確認結果が一致しません。');
+    return data;
+  }
+  async function finalizeFilamentMaster(item) {
+    const healthUrl=new URL(api);healthUrl.searchParams.set('action','health');const health=await request(healthUrl);
+    if(!health.ok||!health.actions?.includes('finalizeFilamentMaster'))throw Error('公開中のGASは仮マスターの正式化にまだ対応していません。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'finalizeFilamentMaster',...item})});
+    if(!data.ok)throw Object.assign(Error(data.message||data.error||'仮マスターを正式化できませんでした。'),{code:data.error});
+    if(data.action!=='finalizeFilamentMaster'||clean(data.filamentId)!==clean(item.filamentId)||data.status!=='正式'||!Number.isInteger(data.affectedCount))throw Error('マスターと在庫の更新結果が一致しません。');
+    return data;
+  }
   async function candidates() {
     if(typeof Papa==='undefined')throw Error('候補の読込機能を取得できません。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
@@ -106,5 +120,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,createMakerMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,createMakerMaster,masterMaintenancePreview,finalizeFilamentMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();

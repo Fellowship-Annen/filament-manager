@@ -8,6 +8,7 @@ function doPost(e) {
     if (action === "updateLabel") return updateLabel(data);
     if (action === "createMakerMaster") return createMakerMaster(data);
     if (action === "createFilamentMaster") return createFilamentMaster(data);
+    if (action === "finalizeFilamentMaster") return finalizeFilamentMaster(data);
     if (action === "registerBatch") return registerFilamentBatch(data);
 
     // ==============================
@@ -139,13 +140,16 @@ function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'provisionalMasters'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'provisionalMasters', 'masterFinalization'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster', 'masterMaintenancePreview', 'finalizeFilamentMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();
     }
     if (e && e.parameter && e.parameter.action === 'makerMasters') {
       return getMakerMasters_();
+    }
+    if (e && e.parameter && e.parameter.action === 'masterMaintenancePreview') {
+      return masterMaintenancePreview_(e.parameter.filamentId);
     }
     if (e && e.parameter && e.parameter.action === 'lookupBatch') {
       return lookupBatch_(e.parameter.ids);
@@ -382,6 +386,99 @@ function createFilamentMaster(data) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function masterMaintenancePreview_(filamentId) {
+  try {
+    const id = historyText_(filamentId).toUpperCase();
+    if (!/^FL\d{6}$/.test(id)) throw new Error('フィラメントIDを確認してください');
+    const book = SpreadsheetApp.getActiveSpreadsheet();
+    const filamentSheet = book.getSheetByName('フィラメントマスター');
+    const ledger = book.getSheetByName('在庫台帳');
+    masterHeaders_(filamentSheet, [/^フィラメントID$/, /^メーカーID$/, /商品名|シリーズ名/, /^素材$/, /サブカテゴリ/, /^色$/, /検索別名/, /購入先URL/, /備考/], 'フィラメントマスター');
+    if (!ledger) throw new Error('在庫台帳が見つかりません');
+    const ledgerHeader = historyText_(ledger.getRange(1, 10).getValues()[0][0]).normalize('NFKC').replace(/\s/g, '');
+    if (!/フィラメントキー|フィラメントID/.test(ledgerHeader)) throw new Error('在庫台帳J列の見出しを確認してください');
+    const rows = filamentSheet.getLastRow() > 1 ? filamentSheet.getRange(2, 1, filamentSheet.getLastRow() - 1, 10).getValues() : [];
+    const matches = rows.map((row, index) => ({row:row, number:index + 2})).filter(entry => historyText_(entry.row[0]).toUpperCase() === id);
+    if (matches.length !== 1) throw new Error(matches.length ? 'フィラメントIDが重複しています' : 'フィラメントIDが見つかりません');
+    const row = matches[0].row;
+    const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 12).getValues() : [];
+    const affectedCount = ledgerRows.filter(item => historyText_(item[9]).toUpperCase() === id).length;
+    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'masterMaintenancePreview', item:{id:id, makerId:historyText_(row[1]).toUpperCase(), temporaryMemo:historyText_(row[2]), base:historyText_(row[3]), sub:historyText_(row[4]), color:historyText_(row[5]), aliases:historyText_(row[6]), purchaseUrl:historyText_(row[7]), note:historyText_(row[8]), status:historyText_(row[9]) || '正式'}, affectedCount:affectedCount});
+  } catch (error) {
+    return jsonResponse({ok:false, error:String(error.message), message:String(error.message)});
+  }
+}
+
+function finalizeFilamentMaster(data) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  let writeStarted = false, rollbackOk = true, filamentSheet = null, ledger = null, masterRowNumber = 0, oldMaster = null, ledgerChanges = [];
+  try {
+    const id = historyText_(data.filamentId).toUpperCase();
+    if (!/^FL\d{6}$/.test(id)) throw new Error('フィラメントIDを確認してください');
+    const book = SpreadsheetApp.getActiveSpreadsheet();
+    const makerSheet = book.getSheetByName('メーカーマスター');
+    filamentSheet = book.getSheetByName('フィラメントマスター');
+    ledger = book.getSheetByName('在庫台帳');
+    masterHeaders_(makerSheet, [/^メーカーID$/, /^メーカー名$/, /標準空スプール重量/, /メーカー別名/], 'メーカーマスター');
+    masterHeaders_(filamentSheet, [/^フィラメントID$/, /^メーカーID$/, /商品名|シリーズ名/, /^素材$/, /サブカテゴリ/, /^色$/, /検索別名/, /購入先URL/, /備考/], 'フィラメントマスター');
+    if (!ledger) throw new Error('在庫台帳が見つかりません');
+    const ledgerHeader = historyText_(ledger.getRange(1, 10).getValues()[0][0]).normalize('NFKC').replace(/\s/g, '');
+    if (!/フィラメントキー|フィラメントID/.test(ledgerHeader)) throw new Error('在庫台帳J列の見出しを確認してください');
+
+    const makerId = masterValue_(data.makerId, 'メーカー', true, 5).toUpperCase();
+    const makerRows = makerSheet.getLastRow() > 1 ? makerSheet.getRange(2, 1, makerSheet.getLastRow() - 1, 2).getValues() : [];
+    const makerMatches = makerRows.filter(row => historyText_(row[0]).toUpperCase() === makerId);
+    if (makerMatches.length !== 1) throw new Error(makerMatches.length ? 'メーカーIDが重複しています' : 'メーカーが見つかりません');
+    const makerName = historyText_(makerMatches[0][1]);
+    const base = masterValue_(data.base, '素材', true, 50);
+    const sub = masterValue_(data.sub, 'サブカテゴリ', true, 50);
+    const color = masterValue_(data.color, '色', true, 80);
+    const aliases = masterValue_(data.aliases, '検索別名', false, 300);
+    const purchaseUrl = masterValue_(data.purchaseUrl, '購入先URL', false, 500);
+    const note = masterValue_(data.note, '備考', false, 1000);
+    if (purchaseUrl && !/^https:\/\//i.test(purchaseUrl)) throw new Error('購入先URLはhttps://から入力してください');
+
+    const masterRows = filamentSheet.getLastRow() > 1 ? filamentSheet.getRange(2, 1, filamentSheet.getLastRow() - 1, 10).getValues() : [];
+    const indexed = masterRows.map((row, index) => ({row:row, number:index + 2}));
+    const matches = indexed.filter(entry => historyText_(entry.row[0]).toUpperCase() === id);
+    if (matches.length !== 1) throw new Error(matches.length ? 'フィラメントIDが重複しています' : 'フィラメントIDが見つかりません');
+    const current = matches[0];
+    if ((historyText_(current.row[9]) || '正式') !== '要整備') throw new Error('このフィラメントは要整備ではありません。最新情報を再取得してください');
+    const normalize = value => historyText_(value).normalize('NFKC').toLowerCase();
+    const duplicate = indexed.find(entry => entry.number !== current.number && historyText_(entry.row[1]).toUpperCase() === makerId && normalize(entry.row[3]) === normalize(base) && normalize(entry.row[4]) === normalize(sub) && normalize(entry.row[5]) === normalize(color));
+    if (duplicate) return jsonResponse({ok:false, error:'MASTER_ALREADY_EXISTS', message:'同じメーカー・素材・サブカテゴリ・色のフィラメントがすでにあります', existingId:historyText_(duplicate.row[0]).toUpperCase()});
+
+    masterRowNumber = current.number;
+    oldMaster = filamentSheet.getRange(masterRowNumber, 2, 1, 9).getValues()[0];
+    const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 12).getValues() : [];
+    ledgerRows.forEach((row, index) => {
+      if (historyText_(row[9]).toUpperCase() === id) ledgerChanges.push({number:index + 2, old:row.slice(1, 5)});
+    });
+
+    writeStarted = true;
+    filamentSheet.getRange(masterRowNumber, 2, 1, 9).setValues([[makerId, oldMaster[1], base, sub, color, aliases, purchaseUrl, note, '正式'].map(historyCell_)]);
+    ledgerChanges.forEach(change => ledger.getRange(change.number, 2, 1, 4).setValues([[makerName, base, sub, color].map(historyCell_)]));
+    SpreadsheetApp.flush();
+    const savedMaster = filamentSheet.getRange(masterRowNumber, 2, 1, 9).getValues()[0];
+    if (historyText_(savedMaster[0]).toUpperCase() !== makerId || historyText_(savedMaster[2]) !== base || historyText_(savedMaster[3]) !== sub || historyText_(savedMaster[4]) !== color || historyText_(savedMaster[8]) !== '正式') throw new Error('フィラメントマスターの保存結果を確認できません');
+    for (const change of ledgerChanges) {
+      const saved = ledger.getRange(change.number, 2, 1, 4).getValues()[0].map(historyText_);
+      if (saved[0] !== makerName || saved[1] !== base || saved[2] !== sub || saved[3] !== color) throw new Error('在庫台帳の同期結果を確認できません');
+    }
+    return jsonResponse({ok:true, apiVersion:'filament-form-history-v3', action:'finalizeFilamentMaster', filamentId:id, status:'正式', affectedCount:ledgerChanges.length, maker:makerName, base:base, sub:sub, color:color});
+  } catch (error) {
+    if (writeStarted) {
+      try { if (oldMaster) filamentSheet.getRange(masterRowNumber, 2, 1, 9).setValues([oldMaster]); } catch (rollbackError) { rollbackOk = false; }
+      for (const change of ledgerChanges) {
+        try { ledger.getRange(change.number, 2, 1, 4).setValues([change.old]); } catch (rollbackError) { rollbackOk = false; }
+      }
+      try { SpreadsheetApp.flush(); } catch (rollbackError) { rollbackOk = false; }
+    }
+    return jsonResponse({ok:false, error:writeStarted&&!rollbackOk?'UPDATE_REQUIRES_REVIEW':String(error.message), message:writeStarted&&!rollbackOk?'マスターまたは在庫の更新結果を確認してください。'+String(error.message):String(error.message), filamentId:historyText_(data.filamentId).toUpperCase()});
+  } finally { lock.releaseLock(); }
 }
 
 function requireFilamentMaster_(book, filamentKey) {

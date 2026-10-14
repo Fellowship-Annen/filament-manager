@@ -1,0 +1,15 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#126b58"><title>仮マスターの整備</title><link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./registration.css"></head>
+<body><main class="wrap"><header><a href="./master-register.html">← マスター追加へ戻る</a><h1>仮マスターの整備</h1><p class="muted">入荷時に仮登録したフィラメントへ正式情報を設定します。</p></header>
+<p id="status" class="status" role="status" aria-live="polite">要整備のフィラメントを取得しています…</p><button id="retry" class="full" type="button" hidden>再取得</button>
+<section id="listPanel" class="panel" hidden><h2>要整備のフィラメント</h2><div id="items"></div><p id="empty" class="muted" hidden>整備が必要なフィラメントはありません。</p></section>
+<section id="editPanel" class="panel" hidden><button id="back" type="button">← 一覧へ戻る</button><h2 class="field">正式情報を入力</h2><p id="target" class="notice"></p><form id="form"><fieldset id="fields">
+<label class="field" for="makerId">メーカー（必須）</label><select id="makerId" required></select>
+<div class="split"><div><label class="field" for="base">素材（必須）</label><input id="base" maxlength="50" required placeholder="例：PLA、ASA"></div><div><label class="field" for="sub">サブカテゴリ（必須）</label><input id="sub" maxlength="50" required placeholder="例：標準、マット、silk"></div></div>
+<label class="field" for="color">色（必須）</label><input id="color" maxlength="80" required placeholder="正式表示に使う色名">
+<label class="field" for="aliasEntry">検索別名</label><div class="split"><input id="aliasEntry" maxlength="100" placeholder="例：ホワイト"><button id="addAlias" type="button">追加</button></div><div id="aliasList" class="actions" aria-live="polite"></div><p class="muted">別名は1件ずつ追加します。</p>
+<label class="field" for="purchaseUrl">購入先URL</label><input id="purchaseUrl" type="url" maxlength="500" inputmode="url" placeholder="https://...">
+<label class="field" for="note">備考</label><textarea id="note" maxlength="1000" placeholder="商品の補足情報"></textarea>
+<p id="impact" class="notice"></p><button id="submit" class="primary full" type="submit">正式情報として保存</button>
+</fieldset></form></section>
+<section id="complete" class="panel" hidden><h2>正式情報を保存しました</h2><dl id="detail"></dl><button id="next" class="primary full" type="button">要整備一覧へ戻る</button></section>
+</main><script src="./registration-common.js"></script><script src="./master-maintenance.js"></script></body></html>
