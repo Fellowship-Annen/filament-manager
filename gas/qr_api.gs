@@ -143,7 +143,7 @@ function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'provisionalMasters', 'masterFinalization', 'makerFinalization', 'unifiedMasterEditing'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster', 'masterMaintenancePreview', 'finalizeFilamentMaster', 'makerMaintenancePreview', 'finalizeMakerMaster', 'updateFilamentMaster', 'updateMakerMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'tareWeightCheck', 'provisionalMasters', 'masterFinalization', 'makerFinalization', 'unifiedMasterEditing'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster', 'masterMaintenancePreview', 'finalizeFilamentMaster', 'makerMaintenancePreview', 'finalizeMakerMaster', 'updateFilamentMaster', 'updateMakerMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();
@@ -186,9 +186,9 @@ function doGet(e) {
       });
     }
 
-    // A～I列をまとめて取得
+    // A～J列をまとめて取得（J列はフィラメントマスターとの紐付け）
     const data = sheet
-      .getRange(2, 1, lastRow - 1, 9)
+      .getRange(2, 1, lastRow - 1, 10)
       .getValues();
 
     for (let i = 0; i < data.length; i++) {
@@ -206,7 +206,8 @@ function doGet(e) {
           location: data[i][5], // F 保管場所
           weight:   data[i][6], // G 重量
           person:   data[i][7], // H 担当
-          note:     data[i][8]  // I 備考
+          note:     data[i][8], // I 備考
+          spoolWeight: spoolWeightForFilament_(SpreadsheetApp.getActiveSpreadsheet(), data[i][9])
         });
       }
     }
@@ -697,14 +698,23 @@ function requireFilamentMaster_(book, filamentKey) {
   if (!makerSheet || !filamentSheet) throw new Error('メーカーマスターまたはフィラメントマスターが見つかりません');
   const makers = new Map();
   const makerLastRow = makerSheet.getLastRow();
-  if (makerLastRow > 1) makerSheet.getRange(2, 1, makerLastRow - 1, 2).getValues().forEach(row => makers.set(historyText_(row[0]).toUpperCase(), historyText_(row[1])));
+  if (makerLastRow > 1) makerSheet.getRange(2, 1, makerLastRow - 1, 3).getValues().forEach(row => {
+    const rawSpoolWeight = row[2] === '' ? null : Number(row[2]);
+    if (rawSpoolWeight !== null && (!Number.isFinite(rawSpoolWeight) || rawSpoolWeight < 0 || rawSpoolWeight > 2000)) throw new Error('メーカーマスターの標準空スプール重量を確認してください');
+    makers.set(historyText_(row[0]).toUpperCase(), {name:historyText_(row[1]), spoolWeight:rawSpoolWeight});
+  });
   const lastRow = filamentSheet.getLastRow();
   if (lastRow < 2) throw new Error('フィラメントマスターが空です');
   const matches = filamentSheet.getRange(2, 1, lastRow - 1, 9).getValues().filter(row => historyText_(row[0]).toUpperCase() === key);
   if (matches.length !== 1) throw new Error(matches.length ? 'フィラメントIDが重複しています' : 'フィラメントIDが見つかりません');
   const row = matches[0], makerId = historyText_(row[1]).toUpperCase(), maker = makers.get(makerId);
   if (!maker) throw new Error('フィラメントのメーカーIDがメーカーマスターにありません');
-  return {filamentKey:key, maker:maker, base:historyText_(row[3]), sub:historyText_(row[4]), color:historyText_(row[5])};
+  return {filamentKey:key, maker:maker.name, spoolWeight:maker.spoolWeight, base:historyText_(row[3]), sub:historyText_(row[4]), color:historyText_(row[5])};
+}
+
+function spoolWeightForFilament_(book, filamentKey) {
+  const key = historyText_(filamentKey);
+  return key ? requireFilamentMaster_(book, key).spoolWeight : null;
 }
 
 function jsonResponse(data) {
@@ -868,17 +878,24 @@ function mutateWithHistory_(data, action) {
         throw new Error('在庫台帳J～L列の見出しを確認してください');
       }
     }
-    const rows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 9).getValues() : [];
+    const rows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 10).getValues() : [];
     const indexes = rows.map((r, i) => historyText_(r[0]) === id ? i : -1).filter(i => i >= 0);
     if (indexes.length > 1) throw new Error('DUPLICATE_ID');
     const index = indexes.length ? indexes[0] : -1;
     if (action === 'register' && index >= 0) throw new Error('ID_ALREADY_EXISTS');
     if (action !== 'register' && index < 0) throw new Error('ID_NOT_FOUND');
-    before = index >= 0 ? rows[index].slice() : null;
+    before = index >= 0 ? rows[index].slice(0, 9) : null;
     if (action === 'updateWeight' && data.expectedWeight !== undefined) {
       const expectedWeight = historyWeight_(data.expectedWeight, false);
       const currentWeight = historyWeight_(before[6], false);
       if (currentWeight !== expectedWeight) throw new Error('現在残量が別の操作で変更されています。データを再取得してから、使用重量を入力し直してください');
+    }
+    if (action === 'updateWeight' && data.grossWeight !== undefined) {
+      const expectedSpoolWeight = historyWeight_(data.expectedSpoolWeight, false);
+      const spoolWeight = spoolWeightForFilament_(book, rows[index][9]);
+      if (spoolWeight === null) throw new Error('このメーカーには標準空スプール重量が登録されていません');
+      if (spoolWeight !== expectedSpoolWeight) throw new Error('標準空スプール重量が変更されています。データを再取得してから入力し直してください');
+      data.weight = Math.max(0, historyWeight_(data.grossWeight, false) - spoolWeight);
     }
 
     if (action === 'register') {

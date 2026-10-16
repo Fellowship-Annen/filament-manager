@@ -34,6 +34,13 @@ console.log('PASS: maker list, master auto-numbering, duplicate rejection, URL a
 const healthResponse=ctx.doGet({parameter:{action:'health'}});assert(healthResponse.ok);assert(healthResponse.features.includes('expectedWeightCheck'));assert(healthResponse.features.includes('masterFinalization'));assert(healthResponse.actions.includes('finalizeFilamentMaster'));assert(healthResponse.features.includes('makerFinalization'));assert(healthResponse.actions.includes('finalizeMakerMaster'));assert(healthResponse.features.includes('unifiedMasterEditing'));assert(healthResponse.actions.includes('updateFilamentMaster'));assert(healthResponse.actions.includes('updateMakerMaster'));
 console.log('PASS: health response advertises expected-weight protection.');
 
+reset();sheets['在庫台帳'].rows[1][9]='FL000001';const tareLookup=ctx.doGet({parameter:{id:'S26092801'}});assert(tareLookup.ok);assert.equal(tareLookup.spoolWeight,180);assert(healthResponse.features.includes('tareWeightCheck'));
+r=ctx.updateWeight({id:'S26092801',weight:1,grossWeight:830,expectedSpoolWeight:180,expectedWeight:842,person:'担当'});assert(r.ok);assert.equal(r.weight,650);assert.equal(sheets['在庫台帳'].rows[1][6],650);
+reset();sheets['在庫台帳'].rows[1][9]='FL000001';r=ctx.updateWeight({id:'S26092801',weight:650,grossWeight:830,expectedSpoolWeight:200,expectedWeight:842,person:'担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);assert.equal(sheets['フォームの回答 1'].rows.length,1);
+reset();sheets['在庫台帳'].rows[1][9]='FL000001';r=ctx.updateWeight({id:'S26092801',weight:0,grossWeight:100,expectedSpoolWeight:180,expectedWeight:842,person:'担当'});assert(r.ok);assert.equal(r.weight,0);
+reset();r=ctx.updateWeight({id:'S26092801',weight:650,grossWeight:830,expectedSpoolWeight:180,expectedWeight:842,person:'担当'});assert(!r.ok);assert.equal(sheets['在庫台帳'].rows[1][6],842);
+console.log('PASS: tare lookup, server-side gross calculation, stale tare rejection, zero floor, and missing-master rejection.');
+
 reset();r=ctx.createMakerMaster({name:'Quick Maker',provisional:true});assert(r.ok);assert.equal(r.id,'MK002');assert.equal(sheets['メーカーマスター'].rows[2][4],'要整備');
 r=ctx.createFilamentMaster({makerId:'MK002',product:'Gold sample',provisional:true});assert(r.ok);assert.equal(r.id,'FL000002');assert.equal(r.base,'未設定');assert.equal(r.status,'要整備');assert.equal(sheets['フィラメントマスター'].rows[2][9],'要整備');
 console.log('PASS: provisional maker and filament creation.');
