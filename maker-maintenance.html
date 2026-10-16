@@ -1,12 +1,12 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#126b58"><title>仮メーカーの整備</title><link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./registration.css"></head>
-<body><main class="wrap"><header><a href="./master-maintenance.html">← フィラメント整備へ戻る</a><h1>仮メーカーの整備</h1><p class="muted">名前だけ仮登録したメーカーへ正式情報を設定します。</p></header>
-<p id="status" class="status" role="status" aria-live="polite">要整備のメーカーを取得しています…</p><button id="retry" class="full" type="button" hidden>再取得</button>
-<section id="listPanel" class="panel" hidden><h2>要整備のメーカー</h2><div id="items"></div><p id="empty" class="muted" hidden>整備が必要なメーカーはありません。</p></section>
-<section id="editPanel" class="panel" hidden><button id="back" type="button">← 一覧へ戻る</button><h2 class="field">正式情報を入力</h2><p id="target" class="notice"></p><form id="form"><fieldset id="fields">
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#126b58"><title>メーカー編集</title><link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./registration.css"></head>
+<body><main class="wrap"><header><a href="./master-management.html">← マスター登録・編集へ戻る</a><h1>メーカーを編集</h1><p class="muted">正式登録済みと仮登録のメーカーを同じ一覧から編集します。</p></header>
+<p id="status" class="status" role="status" aria-live="polite">メーカーを取得しています…</p><button id="retry" class="full" type="button" hidden>再取得</button>
+<section id="listPanel" class="panel" hidden><h2>編集するメーカー</h2><label class="field" for="filterText">名前・IDで絞る</label><input id="filterText" type="search" placeholder="例：Bambu、MK001"><label class="check-row"><input id="pendingOnly" type="checkbox"> 要整備のみ表示</label><div id="items"></div><p id="empty" class="muted" hidden>条件に一致するメーカーはありません。</p></section>
+<section id="editPanel" class="panel" hidden><button id="back" type="button">← 一覧へ戻る</button><h2 class="field">メーカー情報</h2><p id="target" class="notice"></p><form id="form"><fieldset id="fields">
 <label class="field" for="name">正式なメーカー名（必須）</label><input id="name" maxlength="100" required>
 <label class="field" for="aliasEntry">メーカー別名</label><div class="split"><input id="aliasEntry" maxlength="100" placeholder="例：日本語表記、社内呼称"><button id="addAlias" type="button">追加</button></div><div id="aliasList" class="actions" aria-live="polite"></div><p class="muted">別名は1件ずつ追加します。</p>
 <label class="field" for="spoolWeight">標準空スプール重量（g）</label><input id="spoolWeight" type="number" min="0" max="2000" step="any" inputmode="decimal" placeholder="例：200"><p class="muted">メーカーごとの代表値です。分からない場合は空欄のまま保存できます。</p>
-<p id="impact" class="notice"></p><button id="submit" class="primary full" type="submit">正式情報として保存</button>
+<p id="impact" class="notice"></p><button id="submit" class="primary full" type="submit">変更を保存</button>
 </fieldset></form></section>
-<section id="complete" class="panel" hidden><h2>正式情報を保存しました</h2><dl id="detail"></dl><button id="next" class="primary full" type="button">要整備一覧へ戻る</button></section>
+<section id="complete" class="panel" hidden><h2>保存しました</h2><dl id="detail"></dl><button id="next" class="primary full" type="button">一覧へ戻る</button></section>
 </main><script src="./registration-common.js"></script><script src="./maker-maintenance.js"></script></body></html>

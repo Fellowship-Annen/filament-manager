@@ -70,10 +70,10 @@ window.Filament = (() => {
   }
   async function createMakerMaster(item) {
     const health=await verify();
-    if(!health.ok||!health.actions?.includes('createMakerMaster'))throw Error('公開中のGASはメーカーの仮追加にまだ対応していません。');
+    if(!health.ok||!health.actions?.includes('createMakerMaster'))throw Error('公開中のGASはメーカー追加にまだ対応していません。');
     const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'createMakerMaster',...item})});
-    if(!data.ok)throw Error(data.message||data.error||'メーカーを仮追加できませんでした。');
-    if(data.action!=='createMakerMaster'||!/^MK\d{3}$/.test(clean(data.id)))throw Error('メーカー追加の結果が一致しません。');
+    if(!data.ok)throw Error(data.message||data.error||'メーカーを追加できませんでした。');
+    if(data.action!=='createMakerMaster'||!/^MK\d{3}$/.test(clean(data.id))||!['正式','要整備'].includes(data.status))throw Error('メーカー追加の結果が一致しません。');
     return data;
   }
   async function masterMaintenancePreview(filamentId) {
@@ -102,6 +102,22 @@ window.Filament = (() => {
     const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'finalizeMakerMaster',...item})});
     if(!data.ok)throw Object.assign(Error(data.message||data.error||'仮メーカーを正式化できませんでした。'),{code:data.error});
     if(data.action!=='finalizeMakerMaster'||clean(data.makerId)!==clean(item.makerId)||data.status!=='正式'||!Number.isInteger(data.affectedCount))throw Error('メーカーと在庫の更新結果が一致しません。');
+    return data;
+  }
+  async function updateFilamentMaster(item) {
+    const health=await verify();
+    if(!health.actions?.includes('updateFilamentMaster'))throw Error('公開中のGASはマスター編集にまだ対応していません。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'updateFilamentMaster',...item})});
+    if(!data.ok)throw Object.assign(Error(data.message||data.error||'フィラメントを更新できませんでした。'),{code:data.error});
+    if(data.action!=='updateFilamentMaster'||clean(data.filamentId)!==clean(item.filamentId)||!['正式','要整備'].includes(data.status)||!Number.isInteger(data.affectedCount))throw Error('マスターと在庫の更新結果が一致しません。');
+    return data;
+  }
+  async function updateMakerMaster(item) {
+    const health=await verify();
+    if(!health.actions?.includes('updateMakerMaster'))throw Error('公開中のGASはメーカー編集にまだ対応していません。');
+    const data=await request(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'updateMakerMaster',...item})});
+    if(!data.ok)throw Object.assign(Error(data.message||data.error||'メーカーを更新できませんでした。'),{code:data.error});
+    if(data.action!=='updateMakerMaster'||clean(data.makerId)!==clean(item.makerId)||data.status!=='正式'||!Number.isInteger(data.affectedCount))throw Error('メーカーと在庫の更新結果が一致しません。');
     return data;
   }
   async function candidates() {
@@ -134,5 +150,5 @@ window.Filament = (() => {
   function itemUrl(id){const url=new URL(home);url.searchParams.set('id',id);return url.toString()}
   function recentRegistrations(){const items=localLoad('filamentRecentRegistrationsV1',[]);return Array.isArray(items)?items.filter(item=>item&&validId(item.id)):[]}
   function rememberRegistration(item){const items=recentRegistrations().filter(old=>old.id!==item.id);items.push({id:item.id,maker:clean(item.maker),base:clean(item.base),sub:clean(item.sub),color:clean(item.color),location:clean(item.location),weight:Number(item.weight),label:clean(item.label),registeredAt:new Date().toISOString()});localSave('filamentRecentRegistrationsV1',items)}
-  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,createMakerMaster,masterMaintenancePreview,finalizeFilamentMaster,makerMaintenancePreview,finalizeMakerMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
+  return {api,home,places,clean,validId,request,lookup,lookupBatch,verify,registerBatch,filamentMasters,makerMasters,createFilamentMaster,createMakerMaster,masterMaintenancePreview,finalizeFilamentMaster,makerMaintenancePreview,finalizeMakerMaster,updateFilamentMaster,updateMakerMaster,candidates,updateLabel,localLoad,localSave,persistentLoad,persistentSave,itemUrl,recentRegistrations,rememberRegistration};
 })();

@@ -1,0 +1,10 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#126b58"><title>メーカー新規登録</title><link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./registration.css"></head>
+<body><main class="wrap"><header><a href="./master-management.html">← マスター登録・編集へ戻る</a><h1>新しいメーカーを登録</h1><p class="muted">メーカー情報だけを正式登録します。入庫やフィラメント登録は行いません。</p></header>
+<section class="panel"><form id="form"><fieldset id="fields">
+<label class="field" for="name">メーカー名（必須）</label><input id="name" maxlength="100" required placeholder="例：Bambu Lab">
+<label class="field" for="aliasEntry">メーカー別名</label><div class="split"><input id="aliasEntry" maxlength="100" placeholder="例：bambu、社内呼称"><button id="addAlias" type="button">追加</button></div><div id="aliasList" class="actions" aria-live="polite"></div><p class="muted">検索に使いたい別表記を1件ずつ追加します。</p>
+<label class="field" for="spoolWeight">標準空スプール重量（g）</label><input id="spoolWeight" type="number" min="0" max="2000" step="any" inputmode="decimal" placeholder="例：200"><p class="muted">メーカーごとの代表値です。分からない場合は空欄で登録できます。</p>
+<button class="primary full" type="submit">メーカーを正式登録</button>
+</fieldset></form><p id="status" class="status" role="status" aria-live="polite"></p></section>
+<section id="complete" class="panel" hidden><h2>登録しました</h2><dl id="detail"></dl><a class="button primary full" href="./master-management.html">マスター登録・編集へ戻る</a><a class="button full" href="./maker-register.html">続けて別のメーカーを登録</a></section>
+</main><script src="./registration-common.js"></script><script src="./maker-register.js"></script></body></html>
