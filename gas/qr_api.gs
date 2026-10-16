@@ -65,10 +65,10 @@ function registerFilamentBatch(data) {
     const book = SpreadsheetApp.getActiveSpreadsheet();
     const ledger = book.getSheetByName('在庫台帳');
     if (!ledger) throw new Error('在庫台帳が見つかりません');
-    const extraHeaders = ledger.getRange(1, 10, 1, 3).getValues()[0]
+    const extraHeaders = ledger.getRange(1, 10, 1, 4).getValues()[0]
       .map(v => historyText_(v).normalize('NFKC').replace(/\s/g, ''));
-    if (!/フィラメントキー/.test(extraHeaders[0]) || !/印刷回数/.test(extraHeaders[1]) || !/ラベル注釈/.test(extraHeaders[2])) {
-      throw new Error('在庫台帳J～L列の見出しを確認してください');
+    if (!/フィラメントキー/.test(extraHeaders[0]) || !/印刷回数/.test(extraHeaders[1]) || !/ラベル注釈/.test(extraHeaders[2]) || !/検索別名/.test(extraHeaders[3])) {
+      throw new Error('在庫台帳J～M列の見出しを確認してください');
     }
     const ledgerLastRow = ledger.getLastRow();
     const rows = ledgerLastRow > 1 ? ledger.getRange(2, 1, ledgerLastRow - 1, 12).getValues() : [];
@@ -116,9 +116,9 @@ function registerFilamentBatch(data) {
     const ledgerRecords = prepared.map((entry, index) => {
       const rowNumber = ledgerLastRow + 1 + index;
       const formulas = inventoryMasterFormulas_(rowNumber);
-      return [historyCell_(entry.after[0]), ...formulas, ...entry.after.slice(5).map(historyCell_), historyCell_(entry.filamentKey), 0, historyCell_(entry.label)];
+      return [historyCell_(entry.after[0]), ...formulas, ...entry.after.slice(5).map(historyCell_), historyCell_(entry.filamentKey), 0, historyCell_(entry.label), inventoryAliasFormula_(rowNumber)];
     });
-    ledger.getRange(ledgerLastRow + 1, 1, ledgerRecords.length, 12).setValues(ledgerRecords);
+    ledger.getRange(ledgerLastRow + 1, 1, ledgerRecords.length, 13).setValues(ledgerRecords);
     SpreadsheetApp.flush();
     prepared.forEach((entry, index) => {
       const after = entry.after;
@@ -872,6 +872,11 @@ function inventoryMasterFormulas_(rowNumber) {
     `=IFERROR(VLOOKUP(${key},'フィラメントマスター'!A:F,6,FALSE),"")`
   ];
 }
+function inventoryAliasFormula_(rowNumber) {
+  const row = Number(rowNumber);
+  if (!Number.isInteger(row) || row < 2) throw new Error('在庫台帳の登録行を確認できません');
+  return `=IFERROR(VLOOKUP(J${row},'フィラメントマスター'!A:G,7,FALSE),"")`;
+}
 function mutateWithHistory_(data, action) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -891,10 +896,10 @@ function mutateWithHistory_(data, action) {
       data.base = master.base;
       data.sub = master.sub;
       data.color = master.color;
-      const extraHeaders = ledger.getRange(1, 10, 1, 3).getValues()[0]
+      const extraHeaders = ledger.getRange(1, 10, 1, 4).getValues()[0]
         .map(v => historyText_(v).normalize('NFKC').replace(/\s/g, ''));
-      if (!/フィラメントキー/.test(extraHeaders[0]) || !/印刷回数/.test(extraHeaders[1]) || !/ラベル注釈/.test(extraHeaders[2])) {
-        throw new Error('在庫台帳J～L列の見出しを確認してください');
+      if (!/フィラメントキー/.test(extraHeaders[0]) || !/印刷回数/.test(extraHeaders[1]) || !/ラベル注釈/.test(extraHeaders[2]) || !/検索別名/.test(extraHeaders[3])) {
+        throw new Error('在庫台帳J～M列の見出しを確認してください');
       }
     }
     const rows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 10).getValues() : [];
@@ -949,8 +954,8 @@ function mutateWithHistory_(data, action) {
     writeAttempted = true;
     if (action === 'register') {
       const rowNumber = ledger.getLastRow() + 1;
-      const ledgerRecord = [historyCell_(after[0]), ...inventoryMasterFormulas_(rowNumber), ...after.slice(5).map(historyCell_), historyCell_(data.filamentKey), 0, historyCell_(data.label)];
-      ledger.getRange(rowNumber, 1, 1, 12).setValues([ledgerRecord]);
+      const ledgerRecord = [historyCell_(after[0]), ...inventoryMasterFormulas_(rowNumber), ...after.slice(5).map(historyCell_), historyCell_(data.filamentKey), 0, historyCell_(data.label), inventoryAliasFormula_(rowNumber)];
+      ledger.getRange(rowNumber, 1, 1, 13).setValues([ledgerRecord]);
     } else if (action === 'updateWeight') {
       ledger.getRange(index + 2, 7, 1, 2).setValues([[after[6], historyCell_(person)]]);
     } else {
