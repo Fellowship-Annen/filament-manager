@@ -116,7 +116,7 @@ function registerFilamentBatch(data) {
     const ledgerRecords = prepared.map((entry, index) => {
       const rowNumber = ledgerLastRow + 1 + index;
       const formulas = inventoryMasterFormulas_(rowNumber);
-      return [entry.after[0], ...formulas, ...entry.after.slice(5), entry.filamentKey, 0, entry.label].map(historyCell_);
+      return [historyCell_(entry.after[0]), ...formulas, ...entry.after.slice(5).map(historyCell_), historyCell_(entry.filamentKey), 0, historyCell_(entry.label)];
     });
     ledger.getRange(ledgerLastRow + 1, 1, ledgerRecords.length, 12).setValues(ledgerRecords);
     SpreadsheetApp.flush();
@@ -949,8 +949,8 @@ function mutateWithHistory_(data, action) {
     writeAttempted = true;
     if (action === 'register') {
       const rowNumber = ledger.getLastRow() + 1;
-      const ledgerRecord = [after[0], ...inventoryMasterFormulas_(rowNumber), ...after.slice(5), historyText_(data.filamentKey), 0, historyText_(data.label)];
-      ledger.getRange(ledger.getLastRow() + 1, 1, 1, 12).setValues([ledgerRecord.map(historyCell_)]);
+      const ledgerRecord = [historyCell_(after[0]), ...inventoryMasterFormulas_(rowNumber), ...after.slice(5).map(historyCell_), historyCell_(data.filamentKey), 0, historyCell_(data.label)];
+      ledger.getRange(rowNumber, 1, 1, 12).setValues([ledgerRecord]);
     } else if (action === 'updateWeight') {
       ledger.getRange(index + 2, 7, 1, 2).setValues([[after[6], historyCell_(person)]]);
     } else {
