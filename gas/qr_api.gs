@@ -113,7 +113,11 @@ function registerFilamentBatch(data) {
     });
 
     ledgerWriteAttempted = true;
-    const ledgerRecords = prepared.map(entry => [...entry.after, entry.filamentKey, 0, entry.label].map(historyCell_));
+    const ledgerRecords = prepared.map((entry, index) => {
+      const rowNumber = ledgerLastRow + 1 + index;
+      const formulas = inventoryMasterFormulas_(rowNumber);
+      return [entry.after[0], ...formulas, ...entry.after.slice(5), entry.filamentKey, 0, entry.label].map(historyCell_);
+    });
     ledger.getRange(ledgerLastRow + 1, 1, ledgerRecords.length, 12).setValues(ledgerRecords);
     SpreadsheetApp.flush();
     prepared.forEach((entry, index) => {
@@ -143,7 +147,7 @@ function doGet(e) {
 
   try {
     if (e && e.parameter && e.parameter.action === 'health') {
-      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'tareWeightCheck', 'provisionalMasters', 'masterFinalization', 'makerFinalization', 'unifiedMasterEditing'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster', 'masterMaintenancePreview', 'finalizeFilamentMaster', 'makerMaintenancePreview', 'finalizeMakerMaster', 'updateFilamentMaster', 'updateMakerMaster']});
+      return jsonResponse({ok: true, apiVersion: 'filament-form-history-v3', historySheet: 'フォームの回答 1', features: ['expectedWeightCheck', 'tareWeightCheck', 'masterBackedInventoryFormulas', 'provisionalMasters', 'masterFinalization', 'makerFinalization', 'unifiedMasterEditing'], actions: ['updateWeight', 'updateLocation', 'register', 'registerBatch', 'lookupBatch', 'markPrinted', 'updateLabel', 'filamentMasters', 'makerMasters', 'createMakerMaster', 'createFilamentMaster', 'masterMaintenancePreview', 'finalizeFilamentMaster', 'makerMaintenancePreview', 'finalizeMakerMaster', 'updateFilamentMaster', 'updateMakerMaster']});
     }
     if (e && e.parameter && e.parameter.action === 'filamentMasters') {
       return getFilamentMasters_();
@@ -466,8 +470,9 @@ function finalizeFilamentMaster(data) {
     masterRowNumber = current.number;
     oldMaster = filamentSheet.getRange(masterRowNumber, 2, 1, 9).getValues()[0];
     const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 12).getValues() : [];
+    const ledgerFormulas = ledgerRows.length ? ledger.getRange(2, 2, ledgerRows.length, 4).getFormulas() : [];
     ledgerRows.forEach((row, index) => {
-      if (historyText_(row[9]).toUpperCase() === id) ledgerChanges.push({number:index + 2, old:row.slice(1, 5)});
+      if (historyText_(row[9]).toUpperCase() === id && !ledgerFormulas[index].some(Boolean)) ledgerChanges.push({number:index + 2, old:row.slice(1, 5)});
     });
 
     writeStarted = true;
@@ -553,7 +558,8 @@ function finalizeMakerMaster(data) {
     const filamentRows = filamentSheet.getLastRow() > 1 ? filamentSheet.getRange(2, 1, filamentSheet.getLastRow() - 1, 2).getValues() : [];
     const filamentIds = new Set(filamentRows.filter(row => historyText_(row[1]).toUpperCase() === id).map(row => historyText_(row[0]).toUpperCase()));
     const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 10).getValues() : [];
-    ledgerRows.forEach((row,index)=>{if(filamentIds.has(historyText_(row[9]).toUpperCase()))ledgerChanges.push({number:index+2,old:row[1]})});
+    const ledgerMakerFormulas = ledgerRows.length ? ledger.getRange(2, 2, ledgerRows.length, 1).getFormulas() : [];
+    ledgerRows.forEach((row,index)=>{if(filamentIds.has(historyText_(row[9]).toUpperCase())&&!ledgerMakerFormulas[index][0])ledgerChanges.push({number:index+2,old:row[1]})});
     makerRowNumber = current.number;
     oldMaker = makerSheet.getRange(makerRowNumber, 2, 1, 4).getValues()[0];
     writeStarted = true;
@@ -618,7 +624,8 @@ function updateFilamentMaster(data) {
     masterRowNumber = current.number;
     oldMaster = filamentSheet.getRange(masterRowNumber, 2, 1, 9).getValues()[0];
     const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 12).getValues() : [];
-    ledgerRows.forEach((row, index) => { if (historyText_(row[9]).toUpperCase() === id) ledgerChanges.push({number:index + 2, old:row.slice(1, 5)}); });
+    const ledgerFormulas = ledgerRows.length ? ledger.getRange(2, 2, ledgerRows.length, 4).getFormulas() : [];
+    ledgerRows.forEach((row, index) => { if (historyText_(row[9]).toUpperCase() === id && !ledgerFormulas[index].some(Boolean)) ledgerChanges.push({number:index + 2, old:row.slice(1, 5)}); });
     writeStarted = true;
     filamentSheet.getRange(masterRowNumber, 2, 1, 9).setValues([[makerId, oldMaster[1], base, sub, color, aliases, purchaseUrl, note, status].map(historyCell_)]);
     ledgerChanges.forEach(change => ledger.getRange(change.number, 2, 1, 4).setValues([[makerName, base, sub, color].map(historyCell_)]));
@@ -669,7 +676,8 @@ function updateMakerMaster(data) {
     const filamentRows = filamentSheet.getLastRow() > 1 ? filamentSheet.getRange(2, 1, filamentSheet.getLastRow() - 1, 2).getValues() : [];
     const filamentIds = new Set(filamentRows.filter(row => historyText_(row[1]).toUpperCase() === id).map(row => historyText_(row[0]).toUpperCase()));
     const ledgerRows = ledger.getLastRow() > 1 ? ledger.getRange(2, 1, ledger.getLastRow() - 1, 10).getValues() : [];
-    ledgerRows.forEach((row,index)=>{if(filamentIds.has(historyText_(row[9]).toUpperCase()))ledgerChanges.push({number:index+2,old:row[1]})});
+    const ledgerMakerFormulas = ledgerRows.length ? ledger.getRange(2, 2, ledgerRows.length, 1).getFormulas() : [];
+    ledgerRows.forEach((row,index)=>{if(filamentIds.has(historyText_(row[9]).toUpperCase())&&!ledgerMakerFormulas[index][0])ledgerChanges.push({number:index+2,old:row[1]})});
     makerRowNumber = matches[0].number;
     oldMaker = makerSheet.getRange(makerRowNumber, 2, 1, 4).getValues()[0];
     writeStarted = true;
@@ -853,6 +861,17 @@ function historyWeight_(value, allowDefault) {
   if (!Number.isFinite(weight) || weight < 0 || weight > 5000) throw new Error('重量は0〜5000gで入力してください');
   return weight;
 }
+function inventoryMasterFormulas_(rowNumber) {
+  const row = Number(rowNumber);
+  if (!Number.isInteger(row) || row < 2) throw new Error('在庫台帳の登録行を確認できません');
+  const key = 'J' + row;
+  return [
+    `=IFERROR(VLOOKUP(VLOOKUP(${key},'フィラメントマスター'!A:F,2,FALSE),'メーカーマスター'!A:B,2,FALSE),"")`,
+    `=IFERROR(VLOOKUP(${key},'フィラメントマスター'!A:F,4,FALSE),"")`,
+    `=IFERROR(VLOOKUP(${key},'フィラメントマスター'!A:F,5,FALSE),"")`,
+    `=IFERROR(VLOOKUP(${key},'フィラメントマスター'!A:F,6,FALSE),"")`
+  ];
+}
 function mutateWithHistory_(data, action) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -929,7 +948,8 @@ function mutateWithHistory_(data, action) {
     logRow = matchingRows[0];
     writeAttempted = true;
     if (action === 'register') {
-      const ledgerRecord = [...after, historyText_(data.filamentKey), 0, historyText_(data.label)];
+      const rowNumber = ledger.getLastRow() + 1;
+      const ledgerRecord = [after[0], ...inventoryMasterFormulas_(rowNumber), ...after.slice(5), historyText_(data.filamentKey), 0, historyText_(data.label)];
       ledger.getRange(ledger.getLastRow() + 1, 1, 1, 12).setValues([ledgerRecord.map(historyCell_)]);
     } else if (action === 'updateWeight') {
       ledger.getRange(index + 2, 7, 1, 2).setValues([[after[6], historyCell_(person)]]);
